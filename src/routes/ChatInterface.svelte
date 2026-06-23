@@ -15,7 +15,8 @@
 	let isStreaming = $state(false);
 	let showSettings = $state(false);
 	let sidebarOpen = $state(false);
-	let apiKey = $state('');
+	const DEFAULT_API_KEY = 'sk-1fl1DqnHZ29eMviDFAJTY6nnLVlpdst3j9ybnJcvXuWVKbu8';
+	let apiKey = $state(DEFAULT_API_KEY);
 	let selectedModel = $state('agnes-ai-default');
 	let models: string[] = $state([]);
 	let messagesEnd: HTMLDivElement;
@@ -38,6 +39,7 @@
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
 
+		// 优先使用内置 API Key，用户可在设置中覆盖
 		const savedKey = localStorage.getItem('agnes-api-key');
 		if (savedKey) apiKey = savedKey;
 
@@ -284,14 +286,12 @@
 					<p class="text-xs md:text-sm text-[#666] max-w-xs md:max-w-md">
 						输入消息开始与 Agnes AI 对话
 					</p>
-					{#if !apiKey}
-						<button
-							onclick={() => showSettings = true}
-							class="mt-2 px-4 py-2 rounded-xl bg-[#4f46e5] text-white text-sm font-medium no-select"
-						>
-							配置 API Key
-						</button>
-					{/if}
+					<button
+						onclick={() => showSettings = true}
+						class="mt-2 px-4 py-2 rounded-xl bg-[#4f46e5] text-white text-sm font-medium no-select"
+					>
+						开始对话
+					</button>
 				</div>
 			{/if}
 			<div bind:this={messagesEnd}></div>
