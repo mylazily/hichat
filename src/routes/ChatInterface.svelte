@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { chatSessions, currentSessionId, createNewSession, generateId } from '$lib/stores/chat';
 	import { streamChatCompletion, fetchModels } from '$lib/api/agnes-ai';
+	import { matchKnowledge, SYSTEM_PROMPT } from '$lib/knowledge';
 	import type { Message, ChatSession } from '$lib/stores/chat';
 	import ChatMessage from './ChatMessage.svelte';
 	import Sidebar from './Sidebar.svelte';
@@ -39,7 +40,6 @@
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
 
-		// 优先使用内置 API Key，用户可在设置中覆盖
 		const savedKey = localStorage.getItem('agnes-api-key');
 		if (savedKey) apiKey = savedKey;
 
@@ -91,7 +91,7 @@
 	}
 
 	async function sendMessage() {
-		if (!inputValue.trim() || !activeSessionId || !apiKey || isStreaming) return;
+		if (!inputValue.trim() || !activeSessionId || isStreaming) return;
 
 		const userContent = inputValue.trim();
 		inputValue = '';
@@ -112,6 +112,37 @@
 			});
 		}
 
+		// 先检查内置知识库
+		const knowledgeAnswer = matchKnowledge(userContent);
+		if (knowledgeAnswer) {
+			const assistantMessage: Message = {
+				id: generateId(),
+				role: 'assistant',
+				content: knowledgeAnswer,
+				timestamp: Date.now(),
+				isStreaming: false
+			};
+			chatSessions.updateSession(activeSessionId, {
+				messages: [...updatedMessages, assistantMessage]
+			});
+			return;
+		}
+
+		// 知识库未命中，走 AI API
+		if (!apiKey) {
+			const errorMsg: Message = {
+				id: generateId(),
+				role: 'assistant',
+				content: '请先在设置中配置 API Key 才能使用 AI 对话功能哦~',
+				timestamp: Date.now(),
+				isStreaming: false
+			};
+			chatSessions.updateSession(activeSessionId, {
+				messages: [...updatedMessages, errorMsg]
+			});
+			return;
+		}
+
 		isStreaming = true;
 		const assistantId = generateId();
 		const assistantMessage: Message = {
@@ -126,10 +157,13 @@
 			messages: [...updatedMessages, assistantMessage]
 		});
 
-		const apiMessages = updatedMessages.map(m => ({
-			role: m.role,
-			content: m.content
-		}));
+		const apiMessages = [
+			{ role: 'system', content: SYSTEM_PROMPT },
+			...updatedMessages.map(m => ({
+				role: m.role,
+				content: m.content
+			}))
+		];
 
 		try {
 			const stream = streamChatCompletion(apiMessages, { apiKey, model: selectedModel });
@@ -211,6 +245,11 @@
 			sendMessage();
 		}
 	}
+
+	function quickAsk(question: string) {
+		inputValue = question;
+		sendMessage();
+	}
 </script>
 
 <div class="flex h-[100dvh] w-full bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden">
@@ -250,9 +289,14 @@
 						</svg>
 					</button>
 				{/if}
-				<h1 class="text-sm font-medium text-[#a0a0a0] truncate max-w-[150px] md:max-w-md">
-					{activeSession?.title || 'HiChat'}
-				</h1>
+				<div class="flex items-center gap-2">
+					<div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#ec4899] to-[#f43f5e] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+						爱
+					</div>
+					<h1 class="text-sm font-medium text-[#e8e8e8] truncate max-w-[150px] md:max-w-md">
+						{activeSession?.title || '爱爱'}
+					</h1>
+				</div>
 			</div>
 			<div class="flex items-center gap-1.5 md:gap-2">
 				<span class="hidden md:inline text-xs text-[#666] px-2 py-1 rounded bg-[#1a1a1a] truncate max-w-[120px]">{selectedModel}</span>
@@ -277,21 +321,34 @@
 				{/each}
 			{:else}
 				<div class="flex flex-col items-center justify-center h-full text-center space-y-3 md:space-y-4 px-4">
-					<div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] flex items-center justify-center mb-1 md:mb-2">
-						<svg class="w-7 h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
-						</svg>
+					<div class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#ec4899] to-[#f43f5e] flex items-center justify-center mb-1 md:mb-2">
+						<span class="text-2xl md:text-3xl">💕</span>
 					</div>
-					<h2 class="text-lg md:text-xl font-semibold text-[#e8e8e8]">开始对话</h2>
+					<h2 class="text-lg md:text-xl font-semibold text-[#e8e8e8]">我是爱爱，很高兴遇见你！</h2>
 					<p class="text-xs md:text-sm text-[#666] max-w-xs md:max-w-md">
-						输入消息开始与 Agnes AI 对话
+						来自爱爱大学的 AI 助手，有什么想问的尽管问我哦~
 					</p>
-					<button
-						onclick={() => showSettings = true}
-						class="mt-2 px-4 py-2 rounded-xl bg-[#4f46e5] text-white text-sm font-medium no-select"
-					>
-						开始对话
-					</button>
+					<!-- 快捷问题 -->
+					<div class="flex flex-wrap justify-center gap-2 mt-3 max-w-sm">
+						<button
+							onclick={() => quickAsk('你是谁？')}
+							class="px-3 py-1.5 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#a0a0a0] hover:bg-[#2a2a2a] hover:text-[#e8e8e8] transition-colors no-select"
+						>
+							你是谁？
+						</button>
+						<button
+							onclick={() => quickAsk('爱爱大学最新地址')}
+							class="px-3 py-1.5 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#a0a0a0] hover:bg-[#2a2a2a] hover:text-[#e8e8e8] transition-colors no-select"
+						>
+							爱爱大学最新地址
+						</button>
+						<button
+							onclick={() => quickAsk('爱播爱播最新地址')}
+							class="px-3 py-1.5 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#a0a0a0] hover:bg-[#2a2a2a] hover:text-[#e8e8e8] transition-colors no-select"
+						>
+							爱播爱播最新地址
+						</button>
+					</div>
 				</div>
 			{/if}
 			<div bind:this={messagesEnd}></div>

@@ -32,10 +32,8 @@
 				U
 			</div>
 		{:else}
-			<div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center">
-				<svg class="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-				</svg>
+			<div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-[#ec4899] to-[#f43f5e] flex items-center justify-center text-white text-xs md:text-sm font-bold">
+				爱
 			</div>
 		{/if}
 	</div>
