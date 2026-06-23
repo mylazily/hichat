@@ -230,6 +230,13 @@ html, body {
 	animation: fadeIn 0.2s ease;
 }
 
+/* Desktop: hide overlay */
+@media (min-width: 769px) {
+	.sidebar-overlay {
+		display: none;
+	}
+}
+
 /* Sidebar styles */
 .sidebar {
 	width: 280px;
@@ -242,13 +249,17 @@ html, body {
 	transition: all var(--transition-medium);
 }
 
-.sidebar.collapsed {
-	width: 0;
-	min-width: 0;
-	overflow: hidden;
-	border-right: none;
+/* Desktop: always show sidebar (ignore collapsed class) */
+@media (min-width: 769px) {
+	.sidebar.collapsed {
+		width: 280px;
+		min-width: 280px;
+		overflow: visible;
+		border-right: 1px solid var(--dbx-line-7);
+	}
 }
 
+/* Mobile: collapsed = hidden */
 @media (max-width: 768px) {
 	.sidebar {
 		position: fixed;
