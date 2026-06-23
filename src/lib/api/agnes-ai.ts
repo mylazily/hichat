@@ -102,3 +102,64 @@ export async function fetchModels(config: AgnesAIConfig): Promise<string[]> {
 		return [];
 	}
 }
+
+// ADD: Image generation
+export async function generateImage(prompt: string, size: string = '1024x1024', config: AgnesAIConfig): Promise<{ url: string; revised_prompt?: string }> {
+	const baseUrl = config.baseUrl || API_BASE;
+	const response = await fetch(`${baseUrl}/v1/images/generations`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${config.apiKey}`
+		},
+		body: JSON.stringify({
+			model: 'agnes-image-2.1-flash',
+			prompt,
+			size,
+			n: 1
+		})
+	});
+	if (!response.ok) {
+		const error = await response.text();
+		throw new Error(`Image generation failed: ${response.status} - ${error}`);
+	}
+	const data = await response.json();
+	return data.data?.[0] || { url: '', revised_prompt: prompt };
+}
+
+// ADD: Video generation (async)
+export async function createVideoTask(prompt: string, config: AgnesAIConfig): Promise<string> {
+	const baseUrl = config.baseUrl || API_BASE;
+	const response = await fetch(`${baseUrl}/v1/videos`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${config.apiKey}`
+		},
+		body: JSON.stringify({
+			model: 'agnes-video-v2.0',
+			prompt,
+			width: 768,
+			height: 1152,
+			num_frames: 121,
+			frame_rate: 24
+		})
+	});
+	if (!response.ok) {
+		const error = await response.text();
+		throw new Error(`Video creation failed: ${response.status} - ${error}`);
+	}
+	const data = await response.json();
+	return data.taskId || data.id || data.video_id || '';
+}
+
+export async function getVideoStatus(taskId: string, config: AgnesAIConfig): Promise<{ status: string; url?: string }> {
+	const baseUrl = config.baseUrl || API_BASE;
+	const response = await fetch(`${baseUrl}/agnesapi?video_id=${taskId}`, {
+		headers: {
+			Authorization: `Bearer ${config.apiKey}`
+		}
+	});
+	if (!response.ok) throw new Error(`Video status check failed: ${response.status}`);
+	return await response.json();
+}

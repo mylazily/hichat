@@ -20,7 +20,7 @@
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: var(--dbx-fill-primary);
+		background: #06f;
 		animation: bounce 1.4s infinite ease-in-out both;
 	}
 </style>

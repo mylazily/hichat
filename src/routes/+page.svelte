@@ -16,6 +16,7 @@
 	function handleNewChat() {
 		resetChat();
 		storedConversations = getStoredConversations();
+		sidebarOpen = false;
 	}
 
 	function handleRemoveConversation(id: string) {
@@ -34,7 +35,7 @@
 	<meta name="description" content="来自爱爱大学的 AI 助手，有什么想问的尽管问我哦~" />
 </svelte:head>
 
-<div style="display: flex; height: 100vh; width: 100vw; overflow: hidden;">
+<div class="app-layout">
 	<!-- Sidebar overlay for mobile -->
 	{#if sidebarOpen}
 		<div class="sidebar-overlay" onclick={() => (sidebarOpen = false)} role="presentation"></div>
@@ -42,6 +43,15 @@
 
 	<!-- Sidebar -->
 	<aside class="sidebar {sidebarOpen ? '' : 'collapsed'}">
+		<!-- Logo area -->
+		<div class="sidebar-logo">
+			<div class="sidebar-logo-icon">
+				<span class="sidebar-logo-text">爱</span>
+			</div>
+			<span class="sidebar-logo-label">爱爱</span>
+		</div>
+
+		<!-- New chat button -->
 		<div class="sidebar-header">
 			<button class="sidebar-new-chat-btn" onclick={handleNewChat}>
 				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -50,6 +60,8 @@
 				{$t.newChatButton}
 			</button>
 		</div>
+
+		<!-- History list -->
 		<div class="sidebar-history">
 			<div class="sidebar-section-label">{$t.chatHistory}</div>
 			{#if storedConversations.length > 0}
@@ -72,13 +84,14 @@
 					</button>
 				{/each}
 			{:else}
-				<div style="padding: 8px 12px; color: var(--dbx-text-quaternary); font-size: 12px;">
+				<div class="sidebar-empty">
 					{$t.noConversations}
 				</div>
 			{/if}
 		</div>
+
 		<!-- Sidebar footer with language toggle -->
-		<div style="padding: 12px 16px; border-top: 1px solid var(--dbx-line-7);">
+		<div class="sidebar-footer">
 			<button
 				onclick={toggleLocale}
 				class="sidebar-lang-btn"
@@ -94,7 +107,7 @@
 	</aside>
 
 	<!-- Main content -->
-	<main style="flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--dbx-bg-body);">
+	<main class="main-content">
 		<ChatInterface
 			onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
 			{sidebarOpen}
@@ -103,6 +116,54 @@
 </div>
 
 <style>
+	.app-layout {
+		display: flex;
+		height: 100vh;
+		width: 100vw;
+		overflow: hidden;
+	}
+
+	.main-content {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		background: var(--dbx-bg-content);
+	}
+
+	/* Sidebar logo */
+	.sidebar-logo {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 16px;
+		border-bottom: 1px solid var(--dbx-line-7);
+	}
+
+	.sidebar-logo-icon {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #ec4899, #f43f5e);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.sidebar-logo-text {
+		color: white;
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	.sidebar-logo-label {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--dbx-text-primary);
+	}
+
+	/* Sidebar header */
 	.sidebar-header {
 		padding: 12px 16px;
 		border-bottom: 1px solid var(--dbx-line-7);
@@ -115,9 +176,9 @@
 		gap: 6px;
 		width: 100%;
 		padding: 10px;
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-xs);
 		border: 1px solid var(--dbx-line-7);
-		background: var(--dbx-bg-surface);
+		background: var(--dbx-bg-body);
 		color: var(--dbx-text-secondary);
 		font-size: 13px;
 		font-weight: 500;
@@ -127,9 +188,10 @@
 
 	.sidebar-new-chat-btn:hover {
 		background: var(--dbx-fill-trans-10);
-		border-color: var(--dbx-line-highlight);
+		border-color: rgba(0, 102, 255, 0.3);
 	}
 
+	/* Sidebar history */
 	.sidebar-history {
 		flex: 1;
 		overflow-y: auto;
@@ -150,7 +212,7 @@
 		align-items: center;
 		width: 100%;
 		padding: 10px 12px;
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-xs);
 		border: none;
 		background: transparent;
 		color: var(--dbx-text-secondary);
@@ -178,7 +240,7 @@
 		flex-shrink: 0;
 		width: 24px;
 		height: 24px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--radius-xxs);
 		color: var(--dbx-text-quaternary);
 		opacity: 0;
 		transition: all var(--transition-fast);
@@ -193,12 +255,24 @@
 		color: var(--dbx-function-danger);
 	}
 
+	.sidebar-empty {
+		padding: 8px 12px;
+		color: var(--dbx-text-quaternary);
+		font-size: 12px;
+	}
+
+	/* Sidebar footer */
+	.sidebar-footer {
+		padding: 12px 16px;
+		border-top: 1px solid var(--dbx-line-7);
+	}
+
 	.sidebar-lang-btn {
 		display: flex;
 		align-items: center;
 		gap: 6px;
 		padding: 8px 12px;
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-xs);
 		border: none;
 		background: transparent;
 		color: var(--dbx-text-tertiary);
@@ -210,5 +284,11 @@
 
 	.sidebar-lang-btn:hover {
 		background: var(--dbx-fill-trans-10);
+	}
+
+	@media (max-width: 768px) {
+		.sidebar-logo {
+			padding: 12px 16px;
+		}
 	}
 </style>

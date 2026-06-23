@@ -30,5 +30,12 @@ export const en: Translations = {
 	loadingHistory: 'Loading...',
 	loadHistoryEmpty: 'No history yet',
 	loadHistoryFailed: 'Failed to load history',
-	streamingThinking: 'Thinking...'
+	streamingThinking: 'Thinking...',
+	generatingImage: 'Generating image...',
+	generatingVideo: 'Generating video...',
+	videoPolling: 'Processing video...',
+	downloadButton: 'Download',
+	generationError: 'Generation failed',
+	imageReady: 'Image generated',
+	videoReady: 'Video generated'
 };

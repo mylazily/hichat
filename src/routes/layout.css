@@ -1,44 +1,39 @@
 @import 'tailwindcss';
 
 @theme {
-	/* Doubao-inspired design tokens */
-	--color-bg-body: #fcfcfc;
-	--color-bg-base: #f9f9f9;
-	--color-bg-surface: #ffffff;
-	--color-bg-elevated: #f5f5f5;
+	/* Doubao exact design tokens */
+	--color-bg-body: #fff;
+	--color-bg-sidebar: #f9f9f9;
+	--color-bg-content: #f9fafb;
 
-	--color-text-primary: #000000;
+	--color-brand-primary: #06f;
+	--color-brand-primary-deep: #0057d9;
+
+	--color-text-primary: #000;
 	--color-text-secondary: rgba(0, 0, 0, 0.85);
 	--color-text-tertiary: rgba(0, 0, 0, 0.5);
 	--color-text-quaternary: rgba(0, 0, 0, 0.3);
+	--color-text-disable: rgba(0, 0, 0, 0.15);
 
-	--color-fill-primary: #0065fd;
 	--color-fill-trans-10: rgba(0, 0, 0, 0.04);
 
 	--color-line-7: rgba(0, 0, 0, 0.07);
-	--color-line-divider-5: rgba(0, 0, 0, 0.05);
-	--color-line-highlight: rgba(0, 101, 253, 0.3);
 
 	--color-function-danger: #ff3b30;
 	--color-function-success: #34c759;
 	--color-function-warning: #ff9500;
 
-	--color-neutral-200: #e5e5e5;
+	--color-neutral-200: #e3e3e3;
 
-	/* Brand accent (keeping AiAi pink theme) */
-	--color-brand-primary: #ec4899;
-	--color-brand-secondary: #f43f5e;
-	--color-brand-gradient: linear-gradient(135deg, #ec4899, #f43f5e);
-
-	/* Radius system */
-	--radius-xs: 4px;
-	--radius-sm: 6px;
-	--radius-md: 8px;
-	--radius-lg: 10px;
-	--radius-xl: 12px;
-	--radius-2xl: 16px;
-	--radius-3xl: 20px;
-	--radius-4xl: 24px;
+	/* Radius system - Doubao exact */
+	--radius-xxss: 8px;
+	--radius-xxs: 4px;
+	--radius-xs: 10px;
+	--radius-s: 12px;
+	--radius-m: 16px;
+	--radius-l: 20px;
+	--radius-xl: 24px;
+	--radius-xxl: 32px;
 
 	/* Shadow system */
 	--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -50,29 +45,29 @@
 	--transition-fast: 140ms cubic-bezier(.4, 0, .2, 1);
 	--transition-medium: 200ms cubic-bezier(.4, 0, .2, 1);
 
-	/* Font */
-	--font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	/* Font - Doubao exact */
+	--font-sans: ui-sans-serif, system-ui, sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-/* CSS custom properties for component usage */
+/* CSS custom properties for component usage - dbx prefix */
 :root {
 	--dbx-bg-body: var(--color-bg-body);
-	--dbx-bg-base: var(--color-bg-base);
-	--dbx-bg-surface: var(--color-bg-surface);
-	--dbx-bg-elevated: var(--color-bg-elevated);
+	--dbx-bg-sidebar: var(--color-bg-sidebar);
+	--dbx-bg-content: var(--color-bg-content);
+
+	--dbx-brand-primary: var(--color-brand-primary);
+	--dbx-brand-primary-deep: var(--color-brand-primary-deep);
 
 	--dbx-text-primary: var(--color-text-primary);
 	--dbx-text-secondary: var(--color-text-secondary);
 	--dbx-text-tertiary: var(--color-text-tertiary);
 	--dbx-text-quaternary: var(--color-text-quaternary);
+	--dbx-text-disable: var(--color-text-disable);
 
-	--dbx-fill-primary: var(--color-fill-primary);
 	--dbx-fill-trans-10: var(--color-fill-trans-10);
 
 	--dbx-line-7: var(--color-line-7);
-	--dbx-line-divider-5: var(--color-line-divider-5);
-	--dbx-line-highlight: var(--color-line-highlight);
 
 	--dbx-function-danger: var(--color-function-danger);
 	--dbx-function-success: var(--color-function-success);
@@ -80,29 +75,43 @@
 
 	--dbx-neutral-200: var(--color-neutral-200);
 
-	--radius-xs: var(--radius-xs);
-	--radius-sm: var(--radius-sm);
-	--radius-md: var(--radius-md);
-	--radius-lg: var(--radius-lg);
-	--radius-xl: var(--radius-xl);
-	--radius-2xl: var(--radius-2xl);
-	--radius-3xl: var(--radius-3xl);
-	--radius-4xl: var(--radius-4xl);
+	/* s- prefix aliases */
+	--s-bg-body: var(--dbx-bg-body);
+	--s-bg-sidebar: var(--dbx-bg-sidebar);
+	--s-bg-content: var(--dbx-bg-content);
+	--s-brand: var(--dbx-brand-primary);
+	--s-brand-deep: var(--dbx-brand-primary-deep);
+	--s-text-1: var(--dbx-text-primary);
+	--s-text-2: var(--dbx-text-secondary);
+	--s-text-3: var(--dbx-text-tertiary);
+	--s-text-4: var(--dbx-text-quaternary);
+	--s-text-disable: var(--dbx-text-disable);
+	--s-fill-10: var(--dbx-fill-trans-10);
+	--s-line: var(--dbx-line-7);
+	--s-danger: var(--dbx-function-danger);
+	--s-success: var(--dbx-function-success);
+	--s-warning: var(--dbx-function-warning);
+	--s-neutral: var(--dbx-neutral-200);
 
-	--shadow-xs: var(--shadow-xs);
-	--shadow-sm: var(--shadow-sm);
-	--shadow-md: var(--shadow-md);
-	--shadow-lg: var(--shadow-lg);
+	--s-radius-xxss: var(--radius-xxss);
+	--s-radius-xxs: var(--radius-xxs);
+	--s-radius-xs: var(--radius-xs);
+	--s-radius-s: var(--radius-s);
+	--s-radius-m: var(--radius-m);
+	--s-radius-l: var(--radius-l);
+	--s-radius-xl: var(--radius-xl);
+	--s-radius-xxl: var(--radius-xxl);
 
-	--transition-fast: var(--transition-fast);
-	--transition-medium: var(--transition-medium);
+	--s-shadow-xs: var(--shadow-xs);
+	--s-shadow-sm: var(--shadow-sm);
+	--s-shadow-md: var(--shadow-md);
+	--s-shadow-lg: var(--shadow-lg);
 
-	--font-sans: var(--font-sans);
-	--font-mono: var(--font-mono);
+	--s-transition-fast: var(--transition-fast);
+	--s-transition-medium: var(--transition-medium);
 
-	/* Message colors */
-	--user-msg-color: var(--color-text-primary);
-	--bot-msg-color: var(--color-text-secondary);
+	--s-font: var(--font-sans);
+	--s-font-mono: var(--font-mono);
 }
 
 html, body {
@@ -112,6 +121,8 @@ html, body {
 	-webkit-tap-highlight-color: transparent;
 	touch-action: manipulation;
 	overscroll-behavior-y: none;
+	margin: 0;
+	padding: 0;
 }
 
 /* Scrollbar styling */
@@ -135,7 +146,7 @@ html, body {
 
 /* Selection */
 ::selection {
-	background: rgba(0, 101, 253, 0.15);
+	background: rgba(0, 102, 255, 0.15);
 	color: var(--dbx-text-primary);
 }
 
@@ -206,11 +217,11 @@ html, body {
 	height: 16px;
 	margin-left: 2px;
 	vertical-align: middle;
-	background: var(--dbx-fill-primary);
+	background: var(--dbx-brand-primary);
 	animation: pulse 1.5s infinite;
 }
 
-/* Sidebar styles */
+/* Sidebar overlay */
 .sidebar-overlay {
 	position: fixed;
 	inset: 0;
@@ -219,10 +230,11 @@ html, body {
 	animation: fadeIn 0.2s ease;
 }
 
+/* Sidebar styles */
 .sidebar {
 	width: 280px;
 	flex-shrink: 0;
-	background: var(--dbx-bg-surface);
+	background: var(--dbx-bg-sidebar);
 	border-right: 1px solid var(--dbx-line-7);
 	display: flex;
 	flex-direction: column;
@@ -245,6 +257,7 @@ html, body {
 		z-index: 40;
 		width: 280px;
 		box-shadow: var(--shadow-lg);
+		background: var(--dbx-bg-sidebar);
 	}
 
 	.sidebar.collapsed {
@@ -271,7 +284,7 @@ html, body {
 	justify-content: center;
 	gap: 6px;
 	padding: 6px 12px;
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-xs);
 	border: none;
 	background: transparent;
 	color: var(--dbx-text-tertiary);
@@ -310,20 +323,20 @@ html, body {
 
 .chat-input-wrapper {
 	position: relative;
-	border-radius: var(--radius-4xl);
+	border-radius: var(--radius-xl);
 	border: 1px solid var(--dbx-line-7);
-	background: var(--dbx-bg-surface);
+	background: var(--dbx-bg-body);
 	box-shadow: var(--shadow-sm);
 	transition: all var(--transition-fast);
 	overflow: hidden;
 }
 
 .chat-input-wrapper:focus-within {
-	border-color: var(--dbx-fill-primary);
+	border-color: var(--dbx-brand-primary);
 	box-shadow:
-		0 0 0 3px rgba(0, 101, 253, 0.1),
-		0 0 0 6px rgba(0, 101, 253, 0.05),
-		0 0 20px rgba(0, 101, 253, 0.03);
+		0 0 0 3px rgba(0, 102, 255, 0.1),
+		0 0 0 6px rgba(0, 102, 255, 0.05),
+		0 0 20px rgba(0, 102, 255, 0.03);
 }
 
 .chat-textarea {
@@ -359,7 +372,7 @@ html, body {
 	justify-content: center;
 	width: 32px;
 	height: 32px;
-	border-radius: var(--radius-md);
+	border-radius: var(--radius-xxss);
 	border: none;
 	cursor: pointer;
 	transition: all var(--transition-fast);
@@ -367,12 +380,12 @@ html, body {
 
 .chat-action-btn-stop {
 	background: var(--dbx-text-primary);
-	color: var(--dbx-bg-surface);
+	color: var(--dbx-bg-body);
 }
 
 .chat-action-btn-active {
 	background: var(--dbx-text-primary);
-	color: var(--dbx-bg-surface);
+	color: var(--dbx-bg-body);
 	cursor: pointer;
 }
 
@@ -395,7 +408,7 @@ html, body {
 	justify-content: center;
 	width: 28px;
 	height: 28px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-xxs);
 	border: none;
 	background: transparent;
 	color: var(--dbx-text-quaternary);
@@ -412,7 +425,7 @@ html, body {
 	color: var(--dbx-text-quaternary);
 }
 
-/* Message styles */
+/* Message styles - Doubao exact */
 .msg-user {
 	display: flex;
 	justify-content: flex-end;
@@ -423,9 +436,12 @@ html, body {
 	max-width: 80%;
 	font-size: 15px;
 	line-height: 1.6;
-	color: var(--user-msg-color);
+	color: var(--dbx-text-primary);
 	text-align: right;
 	word-break: break-word;
+	background: rgba(0, 0, 0, 0.04);
+	border-radius: var(--radius-s);
+	padding: 10px 14px;
 }
 
 .msg-ai {
@@ -439,7 +455,7 @@ html, body {
 }
 
 .msg-bot-color {
-	color: var(--bot-msg-color);
+	color: var(--dbx-text-secondary);
 }
 
 /* Welcome screen */
@@ -480,11 +496,17 @@ html, body {
 	max-width: 560px;
 }
 
+@media (max-width: 480px) {
+	.suggestion-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
 .suggestion-card {
 	padding: 14px 16px;
-	border-radius: var(--radius-xl);
+	border-radius: var(--radius-s);
 	border: 1px solid var(--dbx-line-7);
-	background: var(--dbx-bg-surface);
+	background: var(--dbx-bg-body);
 	color: var(--dbx-text-secondary);
 	font-size: 14px;
 	text-align: left;
@@ -494,13 +516,13 @@ html, body {
 }
 
 .suggestion-card:hover {
-	border-color: var(--dbx-line-highlight);
+	border-color: rgba(0, 102, 255, 0.3);
 	background: var(--dbx-fill-trans-10);
 	color: var(--dbx-text-primary);
 	box-shadow: var(--shadow-sm);
 }
 
-/* Settings modal */
+/* Settings modal (kept for reference but not used) */
 .settings-overlay {
 	position: fixed;
 	inset: 0;
@@ -514,8 +536,8 @@ html, body {
 }
 
 .settings-modal {
-	background: var(--dbx-bg-surface);
-	border-radius: var(--radius-2xl);
+	background: var(--dbx-bg-body);
+	border-radius: var(--radius-m);
 	width: 100%;
 	max-width: 440px;
 	margin: 0 16px;
@@ -532,11 +554,135 @@ html, body {
 	}
 
 	.settings-modal {
-		border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+		border-radius: var(--radius-m) var(--radius-m) 0 0;
 		margin: 0;
 		max-width: 100%;
 		max-height: 80vh;
 	}
+}
+
+/* Generation card styles */
+.gen-card {
+	border-radius: var(--radius-m);
+	overflow: hidden;
+	animation: fadeIn 0.3s ease;
+}
+
+.gen-skeleton {
+	background: var(--dbx-fill-trans-10);
+	border-radius: var(--radius-m);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	overflow: hidden;
+}
+
+.gen-skeleton-image {
+	aspect-ratio: 1 / 1;
+	width: 100%;
+	max-width: 400px;
+}
+
+.gen-skeleton-video {
+	aspect-ratio: 16 / 9;
+	width: 100%;
+	max-width: 480px;
+}
+
+.gen-skeleton::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgba(0, 0, 0, 0.04) 50%,
+		transparent 100%
+	);
+	animation: gen-shimmer 1.5s infinite;
+}
+
+@keyframes gen-shimmer {
+	0% { transform: translateX(-100%); }
+	100% { transform: translateX(100%); }
+}
+
+.gen-skeleton-spinner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	color: var(--dbx-text-tertiary);
+	font-size: 13px;
+	z-index: 1;
+}
+
+.gen-skeleton-spinner svg {
+	animation: spin 1s linear infinite;
+	color: var(--dbx-brand-primary);
+}
+
+.gen-image {
+	width: 100%;
+	max-width: 400px;
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.gen-image img {
+	width: 100%;
+	display: block;
+	border-radius: var(--radius-m);
+}
+
+.gen-video {
+	width: 100%;
+	max-width: 480px;
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.gen-video video {
+	width: 100%;
+	display: block;
+	border-radius: var(--radius-m);
+	background: #000;
+}
+
+.gen-download-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 14px;
+	border-radius: var(--radius-xs);
+	border: 1px solid var(--dbx-line-7);
+	background: var(--dbx-bg-body);
+	color: var(--dbx-text-secondary);
+	font-size: 13px;
+	cursor: pointer;
+	transition: all var(--transition-fast);
+	margin-top: 8px;
+}
+
+.gen-download-btn:hover {
+	border-color: var(--dbx-brand-primary);
+	color: var(--dbx-brand-primary);
+	background: rgba(0, 102, 255, 0.04);
+}
+
+.gen-error {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	border-radius: var(--radius-s);
+	border: 1px solid rgba(255, 59, 48, 0.15);
+	background: rgba(255, 59, 48, 0.06);
+	color: var(--dbx-function-danger);
+	font-size: 13px;
+	animation: fadeIn 0.3s ease;
+	max-width: 400px;
 }
 
 /* Error toast */
@@ -544,7 +690,7 @@ html, body {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-xs);
 	border: 1px solid rgba(255, 59, 48, 0.15);
 	background: rgba(255, 59, 48, 0.06);
 	padding: 10px 16px;

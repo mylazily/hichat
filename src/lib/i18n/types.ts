@@ -32,4 +32,11 @@ export interface Translations {
 	loadHistoryEmpty: string;
 	loadHistoryFailed: string;
 	streamingThinking: string;
+	generatingImage: string;
+	generatingVideo: string;
+	videoPolling: string;
+	downloadButton: string;
+	generationError: string;
+	imageReady: string;
+	videoReady: string;
 }

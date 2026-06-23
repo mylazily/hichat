@@ -30,5 +30,12 @@ export const zh: Translations = {
 	loadingHistory: '加载中...',
 	loadHistoryEmpty: '暂无历史对话',
 	loadHistoryFailed: '加载历史失败',
-	streamingThinking: '正在思考...'
+	streamingThinking: '正在思考...',
+	generatingImage: '正在生成图片...',
+	generatingVideo: '正在生成视频...',
+	videoPolling: '视频处理中...',
+	downloadButton: '下载',
+	generationError: '生成失败',
+	imageReady: '图片已生成',
+	videoReady: '视频已生成'
 };
