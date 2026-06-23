@@ -14,11 +14,12 @@
 	let inputValue = $state('');
 	let isStreaming = $state(false);
 	let showSettings = $state(false);
-	let sidebarOpen = $state(true);
+	let sidebarOpen = $state(false);
 	let apiKey = $state('');
 	let selectedModel = $state('agnes-ai-default');
 	let models: string[] = $state([]);
 	let messagesEnd: HTMLDivElement;
+	let isMobile = $state(false);
 
 	chatSessions.subscribe(v => { sessions = v; });
 	currentSessionId.subscribe(v => { activeSessionId = v; });
@@ -34,6 +35,9 @@
 	});
 
 	onMount(() => {
+		checkMobile();
+		window.addEventListener('resize', checkMobile);
+
 		const savedKey = localStorage.getItem('agnes-api-key');
 		if (savedKey) apiKey = savedKey;
 
@@ -55,7 +59,20 @@
 		} else {
 			currentSessionId.set(sessions[0].id);
 		}
+
+		return () => {
+			window.removeEventListener('resize', checkMobile);
+		};
 	});
+
+	function checkMobile() {
+		isMobile = window.innerWidth < 768;
+		if (!isMobile) {
+			sidebarOpen = true;
+		} else {
+			sidebarOpen = false;
+		}
+	}
 
 	$effect(() => {
 		if (sessions.length > 0) {
@@ -156,10 +173,12 @@
 		const newSession = createNewSession();
 		chatSessions.addSession(newSession);
 		currentSessionId.set(newSession.id);
+		if (isMobile) sidebarOpen = false;
 	}
 
 	function handleSelectSession(id: string) {
 		currentSessionId.set(id);
+		if (isMobile) sidebarOpen = false;
 	}
 
 	function handleDeleteSession(id: string) {
@@ -192,11 +211,12 @@
 	}
 </script>
 
-<div class="flex h-screen w-full bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden">
+<div class="flex h-[100dvh] w-full bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden">
 	<Sidebar
 		{sessions}
 		{activeSessionId}
 		{sidebarOpen}
+		{isMobile}
 		onNewChat={handleNewChat}
 		onSelectSession={handleSelectSession}
 		onDeleteSession={handleDeleteSession}
@@ -204,28 +224,39 @@
 		onOpenSettings={() => showSettings = true}
 	/>
 
-	<main class="flex-1 flex flex-col min-w-0 transition-all duration-300">
+	<main class="flex-1 flex flex-col min-w-0 transition-all duration-300 relative">
+		<!-- Mobile Overlay -->
+		{#if sidebarOpen && isMobile}
+			<div
+				class="absolute inset-0 bg-black/60 z-30"
+				onclick={() => sidebarOpen = false}
+				role="presentation"
+			></div>
+		{/if}
+
 		<!-- Header -->
-		<header class="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a] bg-[#0d0d0d]/80 backdrop-blur-sm">
-			<div class="flex items-center gap-3">
-				<button
-					onclick={() => sidebarOpen = !sidebarOpen}
-					class="p-2 rounded-lg hover:bg-[#1a1a1a] transition-colors"
-					aria-label="切换侧边栏"
-				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-					</svg>
-				</button>
-				<h1 class="text-sm font-medium text-[#a0a0a0]">
-					{activeSession?.title || 'LobeChat Svelte'}
+		<header class="flex items-center justify-between px-3 py-2.5 md:px-4 md:py-3 border-b border-[#2a2a2a] bg-[#0d0d0d]/90 backdrop-blur-sm flex-shrink-0 z-10">
+			<div class="flex items-center gap-2 md:gap-3">
+				{#if isMobile}
+					<button
+						onclick={() => sidebarOpen = !sidebarOpen}
+						class="p-2 rounded-lg hover:bg-[#1a1a1a] transition-colors no-select"
+						aria-label="切换侧边栏"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+						</svg>
+					</button>
+				{/if}
+				<h1 class="text-sm font-medium text-[#a0a0a0] truncate max-w-[150px] md:max-w-md">
+					{activeSession?.title || 'HiChat'}
 				</h1>
 			</div>
-			<div class="flex items-center gap-2">
-				<span class="text-xs text-[#666] px-2 py-1 rounded bg-[#1a1a1a]">{selectedModel}</span>
+			<div class="flex items-center gap-1.5 md:gap-2">
+				<span class="hidden md:inline text-xs text-[#666] px-2 py-1 rounded bg-[#1a1a1a] truncate max-w-[120px]">{selectedModel}</span>
 				<button
 					onclick={() => showSettings = true}
-					class="p-2 rounded-lg hover:bg-[#1a1a1a] transition-colors"
+					class="p-2 rounded-lg hover:bg-[#1a1a1a] transition-colors no-select"
 					aria-label="设置"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,29 +268,37 @@
 		</header>
 
 		<!-- Messages Area -->
-		<div class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+		<div class="flex-1 overflow-y-auto px-3 py-4 md:px-4 md:py-6 space-y-4 md:space-y-6 scroll-smooth">
 			{#if activeSession && activeSession.messages.length > 0}
 				{#each activeSession.messages as message (message.id)}
 					<ChatMessage {message} />
 				{/each}
 			{:else}
-				<div class="flex flex-col items-center justify-center h-full text-center space-y-4">
-					<div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] flex items-center justify-center mb-2">
-						<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="flex flex-col items-center justify-center h-full text-center space-y-3 md:space-y-4 px-4">
+					<div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] flex items-center justify-center mb-1 md:mb-2">
+						<svg class="w-7 h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
 						</svg>
 					</div>
-					<h2 class="text-xl font-semibold text-[#e8e8e8]">开始对话</h2>
-					<p class="text-sm text-[#666] max-w-md">
-						输入消息开始与 Agnes AI 对话。你可以在设置中配置 API Key 和模型。
+					<h2 class="text-lg md:text-xl font-semibold text-[#e8e8e8]">开始对话</h2>
+					<p class="text-xs md:text-sm text-[#666] max-w-xs md:max-w-md">
+						输入消息开始与 Agnes AI 对话
 					</p>
+					{#if !apiKey}
+						<button
+							onclick={() => showSettings = true}
+							class="mt-2 px-4 py-2 rounded-xl bg-[#4f46e5] text-white text-sm font-medium no-select"
+						>
+							配置 API Key
+						</button>
+					{/if}
 				</div>
 			{/if}
 			<div bind:this={messagesEnd}></div>
 		</div>
 
 		<!-- Input Area -->
-		<div class="border-t border-[#2a2a2a] px-4 py-4 bg-[#0d0d0d]">
+		<div class="border-t border-[#2a2a2a] px-3 py-3 md:px-4 md:py-4 bg-[#0d0d0d] flex-shrink-0 mobile-safe-bottom">
 			<ChatInput
 				bind:value={inputValue}
 				{isStreaming}

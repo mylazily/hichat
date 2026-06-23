@@ -5,6 +5,7 @@
 		sessions: ChatSession[];
 		activeSessionId: string | null;
 		sidebarOpen: boolean;
+		isMobile: boolean;
 		onNewChat: () => void;
 		onSelectSession: (id: string) => void;
 		onDeleteSession: (id: string) => void;
@@ -16,6 +17,7 @@
 		sessions,
 		activeSessionId,
 		sidebarOpen,
+		isMobile,
 		onNewChat,
 		onSelectSession,
 		onDeleteSession,
@@ -35,22 +37,33 @@
 </script>
 
 {#if sidebarOpen}
-	<aside class="w-72 flex-shrink-0 bg-[#111111] border-r border-[#2a2a2a] flex flex-col h-full transition-all duration-300">
+	<aside class="{isMobile ? 'fixed inset-y-0 left-0 z-40 w-[280px]' : 'w-[260px] flex-shrink-0'} bg-[#111111] border-r border-[#2a2a2a] flex flex-col h-full transition-all duration-300">
 		<!-- Logo Area -->
-		<div class="flex items-center gap-3 px-4 py-4 border-b border-[#2a2a2a]">
+		<div class="flex items-center gap-3 px-4 py-3.5 border-b border-[#2a2a2a]">
 			<div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] flex items-center justify-center">
 				<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
 				</svg>
 			</div>
-			<span class="font-semibold text-[#e8e8e8]">LobeChat</span>
+			<span class="font-semibold text-[#e8e8e8] text-base">HiChat</span>
+			{#if isMobile}
+				<button
+					onclick={onToggleSidebar}
+					class="ml-auto p-1.5 rounded-lg hover:bg-[#2a2a2a] text-[#888] transition-colors no-select"
+					aria-label="关闭侧边栏"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			{/if}
 		</div>
 
 		<!-- New Chat Button -->
 		<div class="px-3 py-3">
 			<button
 				onclick={onNewChat}
-				class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#4f46e5] hover:bg-[#4338ca] text-white text-sm font-medium transition-colors"
+				class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#4f46e5] hover:bg-[#4338ca] text-white text-sm font-medium transition-colors no-select active:scale-[0.98]"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -66,19 +79,19 @@
 				<div class="group relative">
 					<button
 						onclick={() => onSelectSession(session.id)}
-						class="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 {activeSessionId === session.id ? 'bg-[#1a1a1a] text-[#e8e8e8]' : 'text-[#a0a0a0] hover:bg-[#1a1a1a] hover:text-[#e8e8e8]' }"
+						class="w-full text-left px-3 py-3 rounded-xl text-sm transition-colors flex items-center gap-2.5 no-select {activeSessionId === session.id ? 'bg-[#1a1a1a] text-[#e8e8e8]' : 'text-[#a0a0a0] hover:bg-[#1a1a1a] hover:text-[#e8e8e8]' }"
 					>
 						<svg class="w-4 h-4 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
 						</svg>
 						<div class="flex-1 min-w-0">
-							<div class="truncate">{session.title}</div>
+							<div class="truncate font-medium">{session.title}</div>
 							<div class="text-xs text-[#666] mt-0.5">{formatDate(session.updatedAt)}</div>
 						</div>
 					</button>
 					<button
 						onclick={() => onDeleteSession(session.id)}
-						class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-[#2a2a2a] text-[#888] hover:text-red-400 transition-all"
+						class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[#2a2a2a] text-[#888] hover:text-red-400 transition-all no-select"
 						aria-label="删除对话"
 					>
 						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +106,7 @@
 		<div class="border-t border-[#2a2a2a] px-3 py-3 space-y-1">
 			<button
 				onclick={onOpenSettings}
-				class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[#a0a0a0] hover:bg-[#1a1a1a] hover:text-[#e8e8e8] transition-colors"
+				class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#a0a0a0] hover:bg-[#1a1a1a] hover:text-[#e8e8e8] transition-colors no-select"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -103,14 +116,4 @@
 			</button>
 		</div>
 	</aside>
-{:else}
-	<button
-		onclick={onToggleSidebar}
-		class="fixed left-4 top-4 z-50 p-2 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] hover:bg-[#2a2a2a] transition-colors"
-		aria-label="打开侧边栏"
-	>
-		<svg class="w-5 h-5 text-[#a0a0a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-		</svg>
-	</button>
 {/if}

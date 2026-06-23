@@ -19,11 +19,11 @@
 	}
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onclick={onClose}>
-	<div class="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl w-full max-w-md mx-4 p-6 shadow-2xl" onclick={(e) => e.stopPropagation()}>
-		<div class="flex items-center justify-between mb-6">
+<div class="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm" onclick={onClose} role="presentation">
+	<div class="bg-[#1a1a1a] border border-[#2a2a2a] rounded-t-2xl md:rounded-2xl w-full max-w-md mx-0 md:mx-4 p-5 md:p-6 shadow-2xl max-h-[85vh] overflow-y-auto" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+		<div class="flex items-center justify-between mb-5">
 			<h2 class="text-lg font-semibold text-[#e8e8e8]">设置</h2>
-			<button onclick={onClose} class="p-1 rounded-lg hover:bg-[#2a2a2a] text-[#888] transition-colors">
+			<button onclick={onClose} class="p-1.5 rounded-lg hover:bg-[#2a2a2a] text-[#888] transition-colors no-select" aria-label="关闭">
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
 				</svg>
@@ -33,17 +33,19 @@
 		<div class="space-y-5">
 			<!-- API Key -->
 			<div>
-				<label class="block text-sm font-medium text-[#a0a0a0] mb-2">Agnes AI API Key</label>
+				<label class="block text-sm font-medium text-[#a0a0a0] mb-2" for="api-key">Agnes AI API Key</label>
 				<div class="relative">
 					<input
+						id="api-key"
 						type={showKey ? 'text' : 'password'}
 						bind:value={localKey}
 						placeholder="sk-..."
-						class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-sm text-[#e8e8e8] placeholder-[#555] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5]/30 outline-none transition-all pr-10"
+						class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-3 text-sm text-[#e8e8e8] placeholder-[#555] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5]/30 outline-none transition-all pr-12"
 					/>
 					<button
 						onclick={() => showKey = !showKey}
-						class="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#e8e8e8] transition-colors"
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#e8e8e8] transition-colors p-1"
+						aria-label={showKey ? '隐藏' : '显示'}
 					>
 						{#if showKey}
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -57,16 +59,16 @@
 						{/if}
 					</button>
 				</div>
-				<p class="text-xs text-[#666] mt-1.5">你的 API Key 仅存储在本地浏览器中</p>
+				<p class="text-xs text-[#666] mt-1.5">API Key 仅存储在本地浏览器中</p>
 			</div>
 
 			<!-- Model Selection -->
 			<div>
 				<div class="flex items-center justify-between mb-2">
-					<label class="block text-sm font-medium text-[#a0a0a0]">模型</label>
+					<label class="block text-sm font-medium text-[#a0a0a0]" for="model-select">模型</label>
 					<button
 						onclick={onLoadModels}
-						class="text-xs text-[#4f46e5] hover:text-[#7c3aed] transition-colors"
+						class="text-xs text-[#4f46e5] hover:text-[#7c3aed] transition-colors no-select"
 						disabled={!localKey}
 					>
 						刷新模型列表
@@ -74,8 +76,9 @@
 				</div>
 				{#if models.length > 0}
 					<select
+						id="model-select"
 						bind:value={localModel}
-						class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-sm text-[#e8e8e8] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5]/30 outline-none transition-all appearance-none cursor-pointer"
+						class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-3 text-sm text-[#e8e8e8] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5]/30 outline-none transition-all appearance-none cursor-pointer"
 					>
 						{#each models as model}
 							<option value={model}>{model}</option>
@@ -83,37 +86,26 @@
 					</select>
 				{:else}
 					<input
+						id="model-select"
 						type="text"
 						bind:value={localModel}
-						placeholder="输入模型名称，如 agnes-ai-default"
-						class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-sm text-[#e8e8e8] placeholder-[#555] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5]/30 outline-none transition-all"
+						placeholder="输入模型名称"
+						class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-3 text-sm text-[#e8e8e8] placeholder-[#555] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5]/30 outline-none transition-all"
 					/>
 				{/if}
-			</div>
-
-			<!-- Base URL -->
-			<div>
-				<label class="block text-sm font-medium text-[#a0a0a0] mb-2">API 基础地址</label>
-				<input
-					type="text"
-					value="https://api.agnes-ai.com"
-					disabled
-					class="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-sm text-[#666] cursor-not-allowed"
-				/>
-				<p class="text-xs text-[#666] mt-1.5">默认使用 Agnes AI 官方 API</p>
 			</div>
 		</div>
 
 		<div class="flex gap-3 mt-6">
 			<button
 				onclick={onClose}
-				class="flex-1 px-4 py-2.5 rounded-xl border border-[#2a2a2a] text-sm text-[#a0a0a0] hover:bg-[#2a2a2a] transition-colors"
+				class="flex-1 px-4 py-3 rounded-xl border border-[#2a2a2a] text-sm text-[#a0a0a0] hover:bg-[#2a2a2a] transition-colors no-select"
 			>
 				取消
 			</button>
 			<button
 				onclick={handleSave}
-				class="flex-1 px-4 py-2.5 rounded-xl bg-[#4f46e5] hover:bg-[#4338ca] text-sm text-white font-medium transition-colors"
+				class="flex-1 px-4 py-3 rounded-xl bg-[#4f46e5] hover:bg-[#4338ca] text-sm text-white font-medium transition-colors no-select active:scale-[0.98]"
 			>
 				保存
 			</button>
