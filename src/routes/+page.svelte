@@ -9,14 +9,22 @@
 	} from '$lib/stores/chat';
 	import type { StoredConversation } from '$lib/stores/chat';
 	import ChatInterface from './ChatInterface.svelte';
+	import { onMount } from 'svelte';
 
 	let sidebarOpen = $state(false);
 	let storedConversations: StoredConversation[] = $state(getStoredConversations());
 
+	onMount(() => {
+		// Desktop: show sidebar by default; Mobile: hidden
+		if (window.innerWidth > 768) {
+			sidebarOpen = true;
+		}
+	});
+
 	function handleNewChat() {
 		resetChat();
 		storedConversations = getStoredConversations();
-		sidebarOpen = false;
+		if (window.innerWidth <= 768) sidebarOpen = false;
 	}
 
 	function handleRemoveConversation(id: string) {
