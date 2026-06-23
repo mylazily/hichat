@@ -1,4 +1,4 @@
-const API_BASE = 'https://api.agnes-ai.com';
+const API_BASE = 'https://apihub.agnes-ai.com';
 
 export interface AgnesAIConfig {
 	apiKey: string;
@@ -17,7 +17,7 @@ export async function* streamChatCompletion(
 	config: AgnesAIConfig
 ): AsyncGenerator<StreamChunk> {
 	const baseUrl = config.baseUrl || API_BASE;
-	const model = config.model || 'agnes-ai-default';
+	const model = config.model || 'agnes-2.0-flash';
 
 	const response = await fetch(`${baseUrl}/v1/chat/completions`, {
 		method: 'POST',

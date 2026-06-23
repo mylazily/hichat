@@ -17,7 +17,7 @@
 	let sidebarOpen = $state(false);
 	const DEFAULT_API_KEY = 'sk-1fl1DqnHZ29eMviDFAJTY6nnLVlpdst3j9ybnJcvXuWVKbu8';
 	let apiKey = $state(DEFAULT_API_KEY);
-	let selectedModel = $state('agnes-ai-default');
+	let selectedModel = $state('agnes-2.0-flash');
 	let models: string[] = $state([]);
 	let messagesEnd: HTMLDivElement;
 	let isMobile = $state(false);
