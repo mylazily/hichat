@@ -23,7 +23,7 @@
 		}
 	});
 
-	function handleSubmit(e?: Event) {
+	function handleSubmit(e: Event | undefined) {
 		if (e) e.preventDefault();
 		const trimmed = value.trim();
 		if (!trimmed) return;
