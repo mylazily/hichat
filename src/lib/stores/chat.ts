@@ -3,7 +3,7 @@ import { streamChatCompletion, generateImage, createVideoTask, getVideoStatus } 
 import type { AgnesAIConfig } from '$lib/api/agnes-ai';
 import { getWeather, getCurrentTime, getNews } from '$lib/api/tools';
 import { deepSearch, formatSearchContext } from '$lib/api/search';
-import { matchKnowledge, SYSTEM_PROMPT } from '$lib/knowledge';
+import { matchKnowledge, SYSTEM_PROMPT, FUNCTION_INSTRUCTIONS, SYSTEM_PROMPT_BASE } from '$lib/knowledge';
 import { getMemoryContext, extractMemoriesFromResponse } from '$lib/stores/memory';
 import { parseMCPToolCalls, cleanMCPMarkers, executeMCPTool } from '$lib/api/mcp';
 import { getCurrentAssistant } from '$lib/stores/assistants';
@@ -495,14 +495,12 @@ export async function sendMessage(text: string, imageAttachments: string[] | und
 
 	// Build system prompt with assistant, knowledge base, memory context
 	const currentAssistant = getCurrentAssistant();
-	const baseSystemPrompt = currentAssistant?.systemPrompt || SYSTEM_PROMPT;
+	const baseSystemPrompt = currentAssistant?.systemPrompt || SYSTEM_PROMPT_BASE;
 	const knowledgeContext = getKnowledgeBaseContext(text);
 	const memoryContext = getMemoryContext();
 
-	let systemPrompt = baseSystemPrompt;
-
-	// Append SYSTEM_PROMPT tool instructions, MCP instructions, multimodal instructions, other features
-	systemPrompt += '\n\n' + SYSTEM_PROMPT;
+	// Combine: assistant role + function instructions + knowledge + memory
+	let systemPrompt = baseSystemPrompt + '\n\n' + FUNCTION_INSTRUCTIONS;
 
 	// Append knowledge base context
 	if (knowledgeContext) {

@@ -157,6 +157,9 @@ When answering complex questions, you may start your response with [THINKING:你
 // 完整的系统提示词
 export const SYSTEM_PROMPT = SYSTEM_PROMPT_BASE + MEMORY_INSTRUCTIONS + TOOL_INSTRUCTIONS + MCP_INSTRUCTIONS + MULTIMODAL_INSTRUCTIONS + OTHER_FEATURES;
 
+// 功能指令（不含角色设定，用于追加到助手提示词后）
+export const FUNCTION_INSTRUCTIONS = MEMORY_INSTRUCTIONS + TOOL_INSTRUCTIONS + MCP_INSTRUCTIONS + MULTIMODAL_INSTRUCTIONS + OTHER_FEATURES;
+
 /**
  * 检查用户输入是否匹配内置知识库
  * 返回匹配到的答案，未匹配返回 null
