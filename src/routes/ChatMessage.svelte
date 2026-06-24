@@ -14,9 +14,10 @@
 		isLastMessage?: boolean;
 		onCopy?: (msg: string) => void;
 		onRegenerate?: (text: string) => void;
+		onSpeak?: (text: string) => void;
 	}
 
-	let { message, isStreaming = false, isLastMessage = false, onCopy, onRegenerate }: Props = $props();
+	let { message, isStreaming = false, isLastMessage = false, onCopy, onRegenerate, onSpeak }: Props = $props();
 
 	let thinkingExpanded = $state(false);
 
@@ -68,12 +69,21 @@
 			</div>
 			<div class="msg-actions" style="justify-content: flex-end;">
 				<button class="msg-action-btn" onclick={() => copyToClipboard(message.content)} title="复制">
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-						<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-					</svg>
-					复制
-				</button>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+								<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+							</svg>
+							复制
+						</button>
+						{#if onSpeak && message.content}
+							<button class="msg-action-btn" onclick={() => onSpeak(message.content)} title="朗读">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+									<path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+								</svg>
+								朗读
+							</button>
+						{/if}
 			</div>
 		</div>
 	</div>
@@ -281,24 +291,33 @@
 							<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
 						</svg>
 						复制
-					</button>
-					{#if isLastMessage && message.role === 'assistant' && onRegenerate}
-						<button class="msg-action-btn" onclick={() => onRegenerate('__regenerate__')} title="重新生成">
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<polyline points="23 4 23 10 17 10" />
-								<path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
-							</svg>
-							重新生成
-						</button>
-					{/if}
-					<button class="msg-action-btn" onclick={exportChat} title="导出">
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-							<polyline points="7 10 12 15 17 10" />
-							<line x1="12" y1="15" x2="12" y2="3" />
-						</svg>
-						导出
-					</button>
+															</button>
+															{#if onSpeak && message.content}
+																<button class="msg-action-btn" onclick={() => onSpeak(message.content)} title="朗读">
+																	<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+																		<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+																		<path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+																	</svg>
+																	朗读
+																</button>
+															{/if}
+															{#if isLastMessage && message.role === 'assistant' && onRegenerate}
+																<button class="msg-action-btn" onclick={() => onRegenerate('__regenerate__')} title="重新生成">
+																	<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+																		<polyline points="23 4 23 10 17 10" />
+																		<path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+																	</svg>
+																	重新生成
+																</button>
+															{/if}
+															<button class="msg-action-btn" onclick={exportChat} title="导出">
+																<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+																	<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+																	<polyline points="7 10 12 15 17 10" />
+																	<line x1="12" y1="15" x2="12" y2="3" />
+																</svg>
+																导出
+															</button>
 				</div>
 			{/if}
 		</div>

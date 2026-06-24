@@ -88,14 +88,31 @@
 		}
 	});
 
-	function handleSend(text: string) {
+	function handleSend(text: string, imageAttachments: string[] | undefined, fileAttachments: { name: string; content: string }[] | undefined) {
 		if ($isStreaming) return;
-		sendMessage(text);
+		sendMessage(text, imageAttachments, fileAttachments);
 	}
 
 	function handleStop() {
 		if ($isStreaming) {
 			stopStreaming();
+		}
+	}
+
+	// TTS - Text to Speech
+	function speakText(text: string) {
+		if (!window.speechSynthesis) return;
+		window.speechSynthesis.cancel();
+		const utterance = new SpeechSynthesisUtterance(text);
+		utterance.lang = 'zh-CN';
+		utterance.rate = 1.0;
+		utterance.pitch = 1.0;
+		window.speechSynthesis.speak(utterance);
+	}
+
+	function stopSpeaking() {
+		if (window.speechSynthesis) {
+			window.speechSynthesis.cancel();
 		}
 	}
 </script>
@@ -119,6 +136,13 @@
 			</div>
 			<h1 class="header-title">{$t.appTitle}</h1>
 		</div>
+
+		<!-- TTS stop button -->
+		<button class="header-btn" onclick={stopSpeaking} title="停止朗读">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="6" y="6" width="12" height="12" rx="2" />
+			</svg>
+		</button>
 	</header>
 
 	<div class="chat-body">
@@ -142,6 +166,7 @@
 								isLastMessage={item.message === $messages[$messages.length - 1]}
 								onCopy={showToast}
 								onRegenerate={handleSend}
+								onSpeak={speakText}
 							/>
 						{/if}
 					{/each}

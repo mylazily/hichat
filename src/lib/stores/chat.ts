@@ -1,11 +1,13 @@
 import { writable, get } from 'svelte/store';
 import { streamChatCompletion, generateImage, createVideoTask, getVideoStatus } from '$lib/api/agnes-ai';
 import type { AgnesAIConfig } from '$lib/api/agnes-ai';
-import { getWeather, getCurrentTime, getNews, webSearch } from '$lib/api/tools';
+import { getWeather, getCurrentTime, getNews } from '$lib/api/tools';
+import { deepSearch, formatSearchContext } from '$lib/api/search';
 import { matchKnowledge, SYSTEM_PROMPT } from '$lib/knowledge';
+import { getMemoryContext, extractMemoriesFromResponse } from '$lib/stores/memory';
 
 export interface ToolCall {
-	type: 'weather' | 'time' | 'news' | 'search';
+	type: 'weather' | 'time' | 'news' | 'websearch' | 'deepsearch';
 	parameter: string;
 	status: 'calling' | 'success' | 'error';
 	result?: string;
@@ -50,6 +52,8 @@ export interface Message {
 	quizQuestions?: QuizQuestion[];
 	pipelineSteps?: PipelineStep[];
 	researchTopic?: string;
+	// File attachments
+	fileAttachments?: { name: string; content: string }[];
 }
 
 export interface StoredConversation {
@@ -191,7 +195,12 @@ function parseAllMarkers(content: string): {
 
 	const toolSearchRegex = /\[TOOL_SEARCH:(.*?)\]/g;
 	while ((match = toolSearchRegex.exec(content)) !== null) {
-		toolCalls.push({ type: 'search', parameter: match[1].trim(), status: 'calling' });
+		toolCalls.push({ type: 'websearch', parameter: match[1].trim(), status: 'calling' });
+	}
+
+	const toolDeepSearchRegex = /\[TOOL_DEEPSEARCH:(.*?)\]/g;
+	while ((match = toolDeepSearchRegex.exec(content)) !== null) {
+		toolCalls.push({ type: 'deepsearch', parameter: match[1].trim(), status: 'calling' });
 	}
 
 	// Extract citations
@@ -239,10 +248,12 @@ function parseAllMarkers(content: string): {
 		.replace(/\[TOOL_TIME:.*?\]/g, '')
 		.replace(/\[TOOL_NEWS:.*?\]/g, '')
 		.replace(/\[TOOL_SEARCH:.*?\]/g, '')
+		.replace(/\[TOOL_DEEPSEARCH:.*?\]/g, '')
 		.replace(/\[CITATION:\{.*?\}\]/g, '')
 		.replace(/\[QUIZ:\{.*?\}\]/g, '')
 		.replace(/\[PIPELINE:.*?\]/g, '')
 		.replace(/\[RESEARCH:.*?\]/g, '')
+		.replace(/\[REMEMBER:[^\]]+\]/g, '')
 		.trim();
 
 	return { cleanContent, imagePrompts, videoPrompts, thinkingContent, toolCalls, citations, quizQuestions, pipelineSteps, researchTopic };
@@ -258,8 +269,14 @@ async function executeToolCall(toolCall: ToolCall): Promise<string> {
 				return getCurrentTime(toolCall.parameter === 'auto' ? undefined : toolCall.parameter);
 			case 'news':
 				return await getNews(toolCall.parameter);
-			case 'search':
-				return await webSearch(toolCall.parameter);
+			case 'websearch': {
+				const { results, summaries } = await deepSearch(toolCall.parameter);
+				return formatSearchContext(results, summaries);
+			}
+			case 'deepsearch': {
+				const { results, summaries } = await deepSearch(toolCall.parameter);
+				return formatSearchContext(results, summaries);
+			}
 			default:
 				return '未知工具类型';
 		}
@@ -401,7 +418,7 @@ async function handleVideoGeneration(prompt: string) {
 }
 
 // Send message
-export async function sendMessage(text: string, imageAttachments?: string[]) {
+export async function sendMessage(text: string, imageAttachments?: string[], fileAttachments?: { name: string; content: string }[]) {
 	if (get(isStreaming)) return;
 
 	const userMessage: Message = {
@@ -409,7 +426,8 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 		role: 'user',
 		content: text,
 		timestamp: Date.now(),
-		imageAttachments: imageAttachments
+		imageAttachments: imageAttachments,
+		fileAttachments: fileAttachments
 	};
 
 	messages.update(msgs => [...msgs, userMessage]);
@@ -459,15 +477,26 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 	};
 	messages.update(msgs => [...msgs, assistantMessage]);
 
+	// Build system prompt with memory context
+	const memoryContext = getMemoryContext();
+	const systemPrompt = SYSTEM_PROMPT + memoryContext;
+
 	// Build API messages - support image attachments as vision input
 	const allMsgs = get(messages);
 	const apiMessages: { role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }[] = [
-		{ role: 'system', content: SYSTEM_PROMPT },
+		{ role: 'system', content: systemPrompt },
 		...allMsgs.filter(m => m.role !== 'system' && m.role !== 'tool').map(m => {
+			// Build content string with file attachments
+			let content = m.content;
+			if (m.fileAttachments && m.fileAttachments.length > 0) {
+				const fileContext = m.fileAttachments.map(f => `\n\n[文件: ${f.name}]\n${f.content}`).join('');
+				content += fileContext;
+			}
+
 			if (m.role === 'user' && m.imageAttachments && m.imageAttachments.length > 0) {
 				const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
-				if (m.content) {
-					parts.push({ type: 'text', text: m.content });
+				if (content) {
+					parts.push({ type: 'text', text: content });
 				}
 				for (const img of m.imageAttachments) {
 					parts.push({ type: 'image_url', image_url: { url: img.startsWith('data:') ? img : `data:image/png;base64,${img}` } });
@@ -476,7 +505,7 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 			}
 			return {
 				role: m.role,
-				content: m.content
+				content: content
 			};
 		})
 	].filter(m => m.role !== 'assistant' || (typeof m.content === 'string' && m.content !== ''));
@@ -508,13 +537,16 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 		// Parse ALL markers from the completed response
 		const parsed = parseAllMarkers(fullContent);
 
+		// Extract memories from AI response
+		const cleanContentWithMemory = extractMemoriesFromResponse(parsed.cleanContent);
+
 		// Update the text message with cleaned content and all parsed data
 		messages.update(msgs =>
 			msgs.map(m =>
 				m.id === assistantId
 					? {
 						...m,
-						content: parsed.cleanContent,
+						content: cleanContentWithMemory,
 						isStreaming: false,
 						thinkingContent: parsed.thinkingContent || undefined,
 						showThinking: !!parsed.thinkingContent,
@@ -530,8 +562,6 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 
 		// Execute tool calls in parallel
 		if (parsed.toolCalls.length > 0) {
-			const toolResults: string[] = [];
-
 			// Execute all tool calls
 			const promises = parsed.toolCalls.map(async (tc) => {
 				const result = await executeToolCall(tc);
@@ -605,12 +635,14 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 
 					// Parse any additional markers from follow-up
 					const followUpParsed = parseAllMarkers(followUpContent);
+					const followUpClean = extractMemoriesFromResponse(followUpParsed.cleanContent);
+
 					messages.update(msgs =>
 						msgs.map(m =>
 							m.id === followUpId
 								? {
 									...m,
-									content: followUpParsed.cleanContent,
+									content: followUpClean,
 									isStreaming: false,
 									citations: followUpParsed.citations.length > 0 ? followUpParsed.citations : undefined
 								}

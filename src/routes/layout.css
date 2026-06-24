@@ -114,6 +114,45 @@
 	--s-font-mono: var(--font-mono);
 }
 
+/* Dark theme overrides */
+.dark {
+	--dbx-bg-body: #1a1a1a;
+	--dbx-bg-sidebar: #1e1e1e;
+	--dbx-bg-content: #1a1a1a;
+
+	--dbx-text-primary: #fff;
+	--dbx-text-secondary: rgba(255, 255, 255, 0.85);
+	--dbx-text-tertiary: rgba(255, 255, 255, 0.5);
+	--dbx-text-quaternary: rgba(255, 255, 255, 0.3);
+	--dbx-text-disable: rgba(255, 255, 255, 0.15);
+
+	--dbx-fill-trans-10: rgba(255, 255, 255, 0.06);
+	--dbx-line-7: rgba(255, 255, 255, 0.1);
+
+	--s-bg-body: var(--dbx-bg-body);
+	--s-bg-sidebar: var(--dbx-bg-sidebar);
+	--s-bg-content: var(--dbx-bg-content);
+	--s-text-1: var(--dbx-text-primary);
+	--s-text-2: var(--dbx-text-secondary);
+	--s-text-3: var(--dbx-text-tertiary);
+	--s-text-4: var(--dbx-text-quaternary);
+	--s-text-disable: var(--dbx-text-disable);
+	--s-fill-10: var(--dbx-fill-trans-10);
+	--s-line: var(--dbx-line-7);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.15);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.25);
+}
+
+.dark ::selection {
+	background: rgba(0, 102, 255, 0.25);
+}
+
 html, body {
 	background-color: var(--dbx-bg-body);
 	color: var(--dbx-text-primary);

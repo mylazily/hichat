@@ -8,6 +8,13 @@
 		loadConversation
 	} from '$lib/stores/chat';
 	import type { StoredConversation } from '$lib/stores/chat';
+	import {
+		memoryEntries,
+		memoryEnabled,
+		toggleMemory,
+		removeMemory,
+		clearMemory
+	} from '$lib/stores/memory';
 	import ChatInterface from './ChatInterface.svelte';
 	import { onMount } from 'svelte';
 
@@ -15,6 +22,45 @@
 	let storedConversations: StoredConversation[] = $state(getStoredConversations());
 	let searchQuery = $state('');
 	let pinnedIds: Set<string> = $state(new Set());
+
+	// Memory panel
+	let memoryPanelOpen = $state(false);
+
+	// Theme
+	type Theme = 'light' | 'dark' | 'auto';
+	let theme: Theme = $state('auto');
+
+	function loadTheme() {
+		if (typeof window === 'undefined') return;
+		const saved = localStorage.getItem('hichat-theme') as Theme | null;
+		if (saved) theme = saved;
+	}
+
+	function saveTheme(t: Theme) {
+		theme = t;
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('hichat-theme', t);
+		}
+		applyTheme();
+	}
+
+	function applyTheme() {
+		if (typeof document === 'undefined') return;
+		const root = document.documentElement;
+		if (theme === 'dark') {
+			root.classList.add('dark');
+		} else if (theme === 'light') {
+			root.classList.remove('dark');
+		} else {
+			// Auto: follow system
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			if (prefersDark) {
+				root.classList.add('dark');
+			} else {
+				root.classList.remove('dark');
+			}
+		}
+	}
 
 	// Load pinned IDs from localStorage
 	function loadPinnedIds() {
@@ -54,6 +100,13 @@
 			sidebarOpen = true;
 		}
 		loadPinnedIds();
+		loadTheme();
+		applyTheme();
+
+		// Listen for system theme changes
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQuery.addEventListener('change', applyTheme);
+		return () => mediaQuery.removeEventListener('change', applyTheme);
 	});
 
 	function handleNewChat() {
@@ -70,6 +123,26 @@
 	function handleLoadConversation(id: string) {
 		loadConversation(id);
 		sidebarOpen = false;
+	}
+
+	function getCategoryLabel(cat: string): string {
+		const labels: Record<string, string> = {
+			preference: '偏好',
+			fact: '事实',
+			context: '上下文',
+			goal: '目标'
+		};
+		return labels[cat] || cat;
+	}
+
+	function getCategoryColor(cat: string): string {
+		const colors: Record<string, string> = {
+			preference: '#06f',
+			fact: '#34c759',
+			context: '#ff9500',
+			goal: '#ff3b30'
+		};
+		return colors[cat] || '#999';
 	}
 </script>
 
@@ -220,8 +293,50 @@
 			</div>
 		</div>
 
-		<!-- Sidebar footer with language toggle -->
+		<!-- Memory toggle -->
+		<div class="sidebar-memory-toggle">
+			<button class="sidebar-memory-btn" onclick={() => memoryPanelOpen = !memoryPanelOpen}>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+					<path d="M12 6v6l4 2" />
+				</svg>
+				记忆面板
+				{#if $memoryEntries.length > 0}
+					<span class="memory-badge">{$memoryEntries.length}</span>
+				{/if}
+			</button>
+		</div>
+
+		<!-- Sidebar footer -->
 		<div class="sidebar-footer">
+			<!-- Theme toggle -->
+			<div class="theme-toggle">
+				<button class="theme-btn {theme === 'light' ? 'theme-btn-active' : ''}" onclick={() => saveTheme('light')} title="浅色">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="5" />
+						<line x1="12" y1="1" x2="12" y2="3" />
+						<line x1="12" y1="21" x2="12" y2="23" />
+						<line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+						<line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+						<line x1="1" y1="12" x2="3" y2="12" />
+						<line x1="21" y1="12" x2="23" y2="12" />
+						<line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+						<line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+					</svg>
+				</button>
+				<button class="theme-btn {theme === 'auto' ? 'theme-btn-active' : ''}" onclick={() => saveTheme('auto')} title="自动">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10" />
+						<path d="M12 2a10 10 0 000 20 10 10 0 000-20z" />
+					</svg>
+				</button>
+				<button class="theme-btn {theme === 'dark' ? 'theme-btn-active' : ''}" onclick={() => saveTheme('dark')} title="深色">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+					</svg>
+				</button>
+			</div>
+
 			<button
 				onclick={toggleLocale}
 				class="sidebar-lang-btn"
@@ -235,6 +350,78 @@
 			</button>
 		</div>
 	</aside>
+
+	<!-- Memory panel overlay -->
+	{#if memoryPanelOpen}
+		<div class="memory-panel-overlay" onclick={() => memoryPanelOpen = false} role="presentation"></div>
+	{/if}
+
+	<!-- Memory panel -->
+	{#if memoryPanelOpen}
+		<div class="memory-panel">
+			<div class="memory-panel-header">
+				<h3 class="memory-panel-title">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+						<path d="M12 6v6l4 2" />
+					</svg>
+					记忆面板
+				</h3>
+				<div class="memory-panel-actions">
+					<button class="memory-toggle-btn" onclick={toggleMemory}>
+						{#if $memoryEnabled}
+							<span style="color: var(--dbx-function-success);">已开启</span>
+						{:else}
+							<span style="color: var(--dbx-text-quaternary);">已关闭</span>
+						{/if}
+					</button>
+					<button class="memory-clear-btn" onclick={clearMemory}>
+						清空
+					</button>
+					<button class="memory-close-btn" onclick={() => memoryPanelOpen = false}>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M18 6L6 18M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+			</div>
+			<div class="memory-panel-content">
+				{#if $memoryEntries.length === 0}
+					<div class="memory-empty">
+						<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px; opacity: 0.3;">
+							<path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+							<path d="M12 6v6l4 2" />
+						</svg>
+						<p>暂无记忆</p>
+						<p style="font-size: 12px; color: var(--dbx-text-quaternary); margin-top: 4px;">
+							AI 会在对话中自动记住关于你的重要信息
+						</p>
+					</div>
+				{:else}
+					<div class="memory-list">
+						{#each $memoryEntries as entry}
+							<div class="memory-item">
+								<div class="memory-item-header">
+									<span class="memory-item-category" style="color: {getCategoryColor(entry.category)};">
+										{getCategoryLabel(entry.category)}
+									</span>
+									<span class="memory-item-importance">
+										{'★'.repeat(entry.importance)}{'☆'.repeat(10 - entry.importance)}
+									</span>
+									<button class="memory-item-delete" onclick={() => removeMemory(entry.id)}>
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+											<path d="M18 6L6 18M6 6l12 12" />
+										</svg>
+									</button>
+								</div>
+								<div class="memory-item-content">{entry.content}</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Main content -->
 	<main class="main-content">
@@ -440,6 +627,250 @@
 		padding: 8px 12px;
 		color: var(--dbx-text-quaternary);
 		font-size: 12px;
+	}
+
+	/* Memory toggle */
+	.sidebar-memory-toggle {
+		padding: 8px 12px;
+		border-top: 1px solid var(--dbx-line-7);
+	}
+
+	.sidebar-memory-btn {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		padding: 8px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		color: var(--dbx-text-secondary);
+		font-size: 13px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.sidebar-memory-btn:hover {
+		border-color: rgba(0, 102, 255, 0.3);
+		background: var(--dbx-fill-trans-10);
+	}
+
+	.memory-badge {
+		margin-left: auto;
+		padding: 1px 6px;
+		border-radius: 10px;
+		background: var(--dbx-brand-primary);
+		color: white;
+		font-size: 10px;
+		font-weight: 600;
+	}
+
+	/* Memory panel */
+	.memory-panel-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		z-index: 45;
+	}
+
+	.memory-panel {
+		position: fixed;
+		bottom: 0;
+		left: 280px;
+		width: 360px;
+		max-height: 60vh;
+		background: var(--dbx-bg-body);
+		border: 1px solid var(--dbx-line-7);
+		border-radius: var(--radius-m) var(--radius-m) 0 0;
+		box-shadow: var(--shadow-lg);
+		z-index: 46;
+		display: flex;
+		flex-direction: column;
+		animation: slideUp 0.2s ease;
+	}
+
+	@media (max-width: 768px) {
+		.memory-panel {
+			left: 0;
+			width: 100%;
+		}
+	}
+
+	.memory-panel-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 12px 16px;
+		border-bottom: 1px solid var(--dbx-line-7);
+	}
+
+	.memory-panel-title {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--dbx-text-primary);
+		margin: 0;
+	}
+
+	.memory-panel-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.memory-toggle-btn {
+		padding: 4px 10px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: transparent;
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	.memory-clear-btn {
+		padding: 4px 10px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: transparent;
+		color: var(--dbx-function-danger);
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	.memory-close-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-xxs);
+		border: none;
+		background: transparent;
+		color: var(--dbx-text-tertiary);
+		cursor: pointer;
+	}
+
+	.memory-close-btn:hover {
+		background: var(--dbx-fill-trans-10);
+	}
+
+	.memory-panel-content {
+		flex: 1;
+		overflow-y: auto;
+		padding: 12px 16px;
+	}
+
+	.memory-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 32px 16px;
+		color: var(--dbx-text-quaternary);
+		font-size: 13px;
+		text-align: center;
+	}
+
+	.memory-list {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.memory-item {
+		padding: 10px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+	}
+
+	.memory-item-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 6px;
+	}
+
+	.memory-item-category {
+		font-size: 11px;
+		font-weight: 600;
+		padding: 2px 6px;
+		border-radius: 4px;
+		background: var(--dbx-fill-trans-10);
+	}
+
+	.memory-item-importance {
+		font-size: 10px;
+		color: #ff9500;
+		margin-left: auto;
+	}
+
+	.memory-item-delete {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		border: none;
+		background: transparent;
+		color: var(--dbx-text-quaternary);
+		cursor: pointer;
+		padding: 0;
+		opacity: 0;
+		transition: opacity var(--transition-fast);
+	}
+
+	.memory-item:hover .memory-item-delete {
+		opacity: 1;
+	}
+
+	.memory-item-delete:hover {
+		color: var(--dbx-function-danger);
+		background: rgba(255, 59, 48, 0.08);
+	}
+
+	.memory-item-content {
+		font-size: 13px;
+		color: var(--dbx-text-secondary);
+		line-height: 1.5;
+	}
+
+	/* Theme toggle */
+	.theme-toggle {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		padding: 4px;
+		border-radius: var(--radius-xs);
+		background: var(--dbx-fill-trans-10);
+		margin-bottom: 8px;
+	}
+
+	.theme-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-xxs);
+		border: none;
+		background: transparent;
+		color: var(--dbx-text-tertiary);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.theme-btn:hover {
+		color: var(--dbx-text-secondary);
+	}
+
+	.theme-btn-active {
+		background: var(--dbx-bg-body);
+		color: var(--dbx-brand-primary);
+		box-shadow: var(--shadow-xs);
 	}
 
 	/* Sidebar footer */
