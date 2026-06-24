@@ -291,7 +291,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<string> {
 			}
 			case 'mcp': {
 				const mcpCall = JSON.parse(toolCall.parameter);
-				return await executeMCPTool(mcpCall);
+				return await executeMCPTool(mcpCall.name, mcpCall.params);
 			}
 			default:
 				return '未知工具类型';
@@ -434,7 +434,7 @@ async function handleVideoGeneration(prompt: string) {
 }
 
 // Send message
-export async function sendMessage(text: string, imageAttachments: string[] | undefined, fileAttachments: { name: string; content: string }[] | undefined) {
+export async function sendMessage(text: string, imageAttachments: string[] | undefined = undefined, fileAttachments: { name: string; content: string }[] | undefined = undefined) {
 	if (get(isStreaming)) return;
 
 	const userMessage: Message = {

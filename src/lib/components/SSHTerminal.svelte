@@ -103,12 +103,6 @@
 		command = '';
 	}
 
-	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			handleSubmit(e);
-		}
-	}
-
 	$effect(() => {
 		scrollToBottom();
 	});
@@ -145,7 +139,7 @@
 			<input
 				bind:this={inputEl}
 				bind:value={command}
-				onkeydown={handleKeyDown}
+				type="text"
 				placeholder="输入命令..."
 				autocomplete="off"
 				spellcheck="false"

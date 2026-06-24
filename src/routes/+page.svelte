@@ -20,7 +20,6 @@
 		customAssistants,
 		currentAssistantId,
 		switchAssistant,
-		getAllAssistants,
 		getCurrentAssistant
 	} from '$lib/stores/assistants';
 	import type { AssistantRole } from '$lib/stores/assistants';
@@ -61,7 +60,6 @@
 
 	// Current assistant
 	let currentAssistant = $derived(getCurrentAssistant());
-	let allAssistants = $derived(getAllAssistants());
 
 	function loadTheme() {
 		if (typeof window === 'undefined') return;
