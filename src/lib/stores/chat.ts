@@ -14,6 +14,11 @@ export interface Message {
 	videoUrl?: string;
 	generationStatus?: 'generating' | 'polling' | 'ready' | 'error';
 	generationError?: string;
+	// NEW fields:
+	imageAttachments?: string[];  // base64 images attached by user
+	isRegenerated?: boolean;       // flag for regenerated messages
+	thinkingContent?: string;     // thinking mode content
+	showThinking?: boolean;        // whether thinking is expanded
 }
 
 export interface StoredConversation {
@@ -101,6 +106,7 @@ function parseMultimodalMarkers(content: string): {
 	cleanContent: string;
 	imagePrompts: string[];
 	videoPrompts: string[];
+	thinkingContent: string;
 } {
 	const imagePrompts: string[] = [];
 	const videoPrompts: string[] = [];
@@ -116,12 +122,21 @@ function parseMultimodalMarkers(content: string): {
 		videoPrompts.push(match[1].trim());
 	}
 
+	// Extract thinking content
+	let thinkingContent = '';
+	const thinkingRegex = /\[THINKING:(.*?)\]/gs;
+	const thinkingMatch = thinkingRegex.exec(content);
+	if (thinkingMatch) {
+		thinkingContent = thinkingMatch[1].trim();
+	}
+
 	const cleanContent = content
 		.replace(/\[GENERATE_IMAGE:.*?\]/g, '')
 		.replace(/\[GENERATE_VIDEO:.*?\]/g, '')
+		.replace(/\[THINKING:.*?\]/gs, '')
 		.trim();
 
-	return { cleanContent, imagePrompts, videoPrompts };
+	return { cleanContent, imagePrompts, videoPrompts, thinkingContent };
 }
 
 // Handle image generation
@@ -262,14 +277,15 @@ async function handleVideoGeneration(prompt: string) {
 }
 
 // Send message
-export async function sendMessage(text: string) {
+export async function sendMessage(text: string, imageAttachments?: string[]) {
 	if (get(isStreaming)) return;
 
 	const userMessage: Message = {
 		id: generateId(),
 		role: 'user',
 		content: text,
-		timestamp: Date.now()
+		timestamp: Date.now(),
+		imageAttachments: imageAttachments
 	};
 
 	// Update messages
@@ -321,16 +337,31 @@ export async function sendMessage(text: string) {
 	};
 	messages.update(msgs => [...msgs, assistantMessage]);
 
-	const apiMessages = [
+	// Build API messages - support image attachments as vision input
+	const allMsgs = get(messages);
+	const apiMessages: { role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }[] = [
 		{ role: 'system', content: SYSTEM_PROMPT },
-		...get(messages).filter(m => m.role !== 'system').map(m => ({
-			role: m.role,
-			content: m.content
-		}))
-	].filter(m => m.role !== 'assistant' || m.content !== '');
+		...allMsgs.filter(m => m.role !== 'system').map(m => {
+			// If user message has image attachments, use vision format
+			if (m.role === 'user' && m.imageAttachments && m.imageAttachments.length > 0) {
+				const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+				if (m.content) {
+					parts.push({ type: 'text', text: m.content });
+				}
+				for (const img of m.imageAttachments) {
+					parts.push({ type: 'image_url', image_url: { url: img.startsWith('data:') ? img : `data:image/png;base64,${img}` } });
+				}
+				return { role: m.role, content: parts };
+			}
+			return {
+				role: m.role,
+				content: m.content
+			};
+		})
+	].filter(m => m.role !== 'assistant' || (typeof m.content === 'string' && m.content !== ''));
 
 	try {
-		const stream = streamChatCompletion(apiMessages, {
+		const stream = streamChatCompletion(apiMessages as { role: string; content: string }[], {
 			apiKey: key,
 			model: 'agnes-2.0-flash'
 		});
@@ -354,13 +385,13 @@ export async function sendMessage(text: string) {
 		}
 
 		// Parse multimodal markers from the completed response
-		const { cleanContent, imagePrompts, videoPrompts } = parseMultimodalMarkers(fullContent);
+		const { cleanContent, imagePrompts, videoPrompts, thinkingContent } = parseMultimodalMarkers(fullContent);
 
-		// Update the text message with cleaned content
+		// Update the text message with cleaned content and thinking
 		messages.update(msgs =>
 			msgs.map(m =>
 				m.id === assistantId
-					? { ...m, content: cleanContent, isStreaming: false }
+					? { ...m, content: cleanContent, isStreaming: false, thinkingContent: thinkingContent || undefined, showThinking: !!thinkingContent }
 					: m
 			)
 		);
@@ -415,5 +446,70 @@ export function autoRestore() {
 	if (conversations.length > 0) {
 		loadConversation(conversations[0].id);
 		currentConversationId = conversations[0].id;
+	}
+}
+
+export const pinnedConversations = writable<string[]>([]);
+
+export function togglePinConversation(id: string) {
+	pinnedConversations.update(pins => {
+		if (pins.includes(id)) return pins.filter(p => p !== id);
+		return [...pins, id];
+	});
+	if (typeof window !== 'undefined') {
+		localStorage.setItem('hichat-pinned', JSON.stringify(get(pinnedConversations)));
+	}
+}
+
+export function regenerateLastMessage() {
+	const msgs = get(messages);
+	const lastAssistantIdx = msgs.findLastIndex(m => m.role === 'assistant' && !m.multimodalType);
+	if (lastAssistantIdx < 0) return;
+	const lastUserIdx = msgs.findLastIndex(m => m.role === 'user');
+	if (lastUserIdx < 0) return;
+	// Remove last assistant message
+	const updated = msgs.slice(0, lastAssistantIdx);
+	messages.set(updated);
+	// Re-send the last user message
+	const userMsg = msgs[lastUserIdx].content;
+	sendMessage(userMsg);
+}
+
+export function exportConversation(): string {
+	const msgs = get(messages);
+	let md = `# ${getCurrentTitle()}\n\n`;
+	for (const msg of msgs) {
+		if (msg.role === 'user') {
+			md += `## 用户\n${msg.content}\n\n`;
+		} else if (msg.role === 'assistant' && msg.content) {
+			md += `## 爱爱\n${msg.content}\n\n`;
+			if (msg.imageUrl) md += `![生成的图片](${msg.imageUrl})\n\n`;
+			if (msg.videoUrl) md += `[生成的视频](${msg.videoUrl})\n\n`;
+		}
+	}
+	return md;
+}
+
+export function getCurrentTitle(): string {
+	const convs = getStoredConversations();
+	const conv = convs.find(c => c.id === currentConversationId);
+	return conv?.title || '新对话';
+}
+
+export function searchConversations(query: string): StoredConversation[] {
+	const convs = getStoredConversations();
+	if (!query.trim()) return convs;
+	const q = query.toLowerCase();
+	return convs.filter(c =>
+		c.title.toLowerCase().includes(q) ||
+		c.messages.some(m => m.content.toLowerCase().includes(q))
+	);
+}
+
+// Load pinned on init
+if (typeof window !== 'undefined') {
+	const savedPins = localStorage.getItem('hichat-pinned');
+	if (savedPins) {
+		try { pinnedConversations.set(JSON.parse(savedPins)); } catch {}
 	}
 }

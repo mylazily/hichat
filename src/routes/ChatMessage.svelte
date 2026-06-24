@@ -8,9 +8,13 @@
 		message: Message;
 		isStreaming?: boolean;
 		isLastMessage?: boolean;
+		onCopy?: (msg: string) => void;
+		onRegenerate?: (text: string) => void;
 	}
 
-	let { message, isStreaming = false, isLastMessage = false }: Props = $props();
+	let { message, isStreaming = false, isLastMessage = false, onCopy, onRegenerate }: Props = $props();
+
+	let thinkingExpanded = $state(false);
 
 	function downloadFile(url: string, filename: string) {
 		const a = document.createElement('a');
@@ -22,13 +26,52 @@
 		a.click();
 		document.body.removeChild(a);
 	}
+
+	function copyToClipboard(text: string) {
+		navigator.clipboard.writeText(text).then(() => {
+			if (onCopy) onCopy('已复制到剪贴板');
+		}).catch(() => {
+			// Fallback
+			const textarea = document.createElement('textarea');
+			textarea.value = text;
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+			if (onCopy) onCopy('已复制到剪贴板');
+		});
+	}
+
+	function exportChat() {
+		const text = message.content;
+		const blob = new Blob([text], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `chat-export-${Date.now()}.txt`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
 </script>
 
 {#if message.role === 'user'}
 	<!-- User message: light gray bubble, right-aligned, NO avatar -->
 	<div class="msg-user">
-		<div class="msg-user-content">
-			{message.content}
+		<div>
+			<div class="msg-user-content">
+				{message.content}
+			</div>
+			<div class="msg-actions" style="justify-content: flex-end;">
+				<button class="msg-action-btn" onclick={() => copyToClipboard(message.content)} title="复制">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+						<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+					</svg>
+					复制
+				</button>
+			</div>
 		</div>
 	</div>
 
@@ -147,8 +190,29 @@
 	<!-- AI text message: NO background, NO bubble, plain text left-aligned, NO avatar -->
 	<div class="msg-ai">
 		<div class="msg-ai-inner">
+			<!-- Thinking block -->
+			{#if message.isStreaming && message.content === ''}
+				<div class="thinking-block">
+					<div class="thinking-header" onclick={() => thinkingExpanded = !thinkingExpanded}>
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="10" />
+							<path d="M12 16v-4M12 8h.01" />
+						</svg>
+						正在思考...
+						<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: auto; transition: transform 0.2s; transform: rotate({thinkingExpanded ? 180 : 0}deg);">
+							<polyline points="6 9 12 15 18 9" />
+						</svg>
+					</div>
+					{#if thinkingExpanded}
+						<div class="thinking-content">
+							<TypingIndicator />
+						</div>
+					{/if}
+				</div>
+			{/if}
+
 			<div class="msg-bot-color">
-				{#if message.isStreaming && message.content === ''}
+				{#if message.isStreaming && message.content === '' && !thinkingExpanded}
 					<TypingIndicator />
 				{:else if message.content}
 					<Markdown content={message.content} />
@@ -159,6 +223,36 @@
 					<TypingIndicator />
 				{/if}
 			</div>
+
+			<!-- Action buttons for AI text messages -->
+			{#if message.content && !message.isStreaming}
+				<div class="msg-actions">
+					<button class="msg-action-btn" onclick={() => copyToClipboard(message.content)} title="复制">
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+							<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+						</svg>
+						复制
+					</button>
+					{#if isLastMessage && message.role === 'assistant' && onRegenerate}
+						<button class="msg-action-btn" onclick={() => onRegenerate('__regenerate__')} title="重新生成">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="23 4 23 10 17 10" />
+								<path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+							</svg>
+							重新生成
+						</button>
+					{/if}
+					<button class="msg-action-btn" onclick={exportChat} title="导出">
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+							<polyline points="7 10 12 15 17 10" />
+							<line x1="12" y1="15" x2="12" y2="3" />
+						</svg>
+						导出
+					</button>
+				</div>
+			{/if}
 		</div>
 	</div>
 {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/stores/language';
+	import VoiceInput from '$lib/components/VoiceInput.svelte';
 
 	let {
 		onSend,
@@ -13,6 +14,9 @@
 
 	let value = $state('');
 	let textareaEl: HTMLTextAreaElement | undefined = $state();
+	let isRecording = $state(false);
+	let attachedImages: string[] = $state([]);
+	let fileInputEl: HTMLInputElement | undefined = $state();
 
 	// Auto-resize textarea
 	$effect(() => {
@@ -26,9 +30,10 @@
 	function handleSubmit(e: Event | undefined) {
 		if (e) e.preventDefault();
 		const trimmed = value.trim();
-		if (!trimmed) return;
+		if (!trimmed && attachedImages.length === 0) return;
 		onSend(trimmed);
 		value = '';
+		attachedImages = [];
 		if (textareaEl) {
 			textareaEl.style.height = 'auto';
 		}
@@ -40,10 +45,73 @@
 			handleSubmit();
 		}
 	}
+
+	function handleVoiceResult(text: string) {
+		value = value ? value + ' ' + text : text;
+		isRecording = false;
+	}
+
+	function handleAttachClick() {
+		if (fileInputEl) {
+			fileInputEl.click();
+		}
+	}
+
+	function handleImageUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const files = input.files;
+		if (!files) return;
+		for (const file of files) {
+			if (file.type.startsWith('image/')) {
+				const reader = new FileReader();
+				reader.onload = () => {
+					attachedImages = [...attachedImages, reader.result as string];
+				};
+				reader.readAsDataURL(file);
+			}
+		}
+		// Reset input so same file can be selected again
+		input.value = '';
+	}
+
+	function removeImage(index: number) {
+		attachedImages = attachedImages.filter((_, i) => i !== index);
+	}
 </script>
 
 <div class="chat-input-container mobile-safe-bottom">
 	<form onsubmit={handleSubmit} class="chat-input-form">
+		<!-- Image preview thumbnails -->
+		{#if attachedImages.length > 0}
+			<div class="image-preview-container">
+				{#each attachedImages as img, i}
+					<div class="image-preview">
+						<img src={img} alt="预览" />
+						<button
+							type="button"
+							class="image-preview-remove"
+							onclick={() => removeImage(i)}
+							title="移除"
+						>
+							<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M18 6L6 18M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- Hidden file input for image upload -->
+		<input
+			type="file"
+			accept="image/*"
+			multiple
+			style="display: none;"
+			bind:this={fileInputEl}
+			onchange={handleImageUpload}
+		/>
+
 		<div class="chat-input-wrapper">
 			<!-- Textarea -->
 			<textarea
@@ -71,8 +139,8 @@
 				{:else}
 					<button
 						type="submit"
-						disabled={!value.trim()}
-						class="chat-action-btn {value.trim() ? 'chat-action-btn-active' : 'chat-action-btn-inactive'}"
+						disabled={!value.trim() && attachedImages.length === 0}
+						class="chat-action-btn {value.trim() || attachedImages.length > 0 ? 'chat-action-btn-active' : 'chat-action-btn-inactive'}"
 						title="发送"
 					>
 						<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
@@ -84,13 +152,17 @@
 			<!-- Bottom toolbar -->
 			<div class="chat-toolbar">
 				<div style="display: flex; align-items: center; gap: 4px;">
+					<VoiceInput onResult={handleVoiceResult} isRecording={isRecording} />
 					<button
 						type="button"
 						class="chat-attach-btn"
-						title="附件"
+						onclick={handleAttachClick}
+						title="上传图片"
 					>
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+							<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+							<circle cx="8.5" cy="8.5" r="1.5" />
+							<polyline points="21 15 16 10 5 21" />
 						</svg>
 					</button>
 				</div>

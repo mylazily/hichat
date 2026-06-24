@@ -163,3 +163,23 @@ export async function getVideoStatus(taskId: string, config: AgnesAIConfig): Pro
 	if (!response.ok) throw new Error(`Video status check failed: ${response.status}`);
 	return await response.json();
 }
+
+// Image editing (img2img) - uses agnes-image-2.0-flash
+export async function editImage(prompt: string, imageBase64: string, config: AgnesAIConfig): Promise<{ url: string; revised_prompt?: string }> {
+	const baseUrl = config.baseUrl || API_BASE;
+	const response = await fetch(`${baseUrl}/v1/images/generations`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+		body: JSON.stringify({
+			model: 'agnes-image-2.0-flash',
+			prompt,
+			image: imageBase64,
+			n: 1,
+			size: '1024x1024',
+			extra_body: { tags: ['img2img'] }
+		})
+	});
+	if (!response.ok) throw new Error(`Image edit failed: ${response.status}`);
+	const data = await response.json();
+	return data.data?.[0] || { url: '' };
+}

@@ -13,12 +13,47 @@
 
 	let sidebarOpen = $state(false);
 	let storedConversations: StoredConversation[] = $state(getStoredConversations());
+	let searchQuery = $state('');
+	let pinnedIds: Set<string> = $state(new Set());
+
+	// Load pinned IDs from localStorage
+	function loadPinnedIds() {
+		try {
+			const saved = localStorage.getItem('hichat-pinned');
+			if (saved) pinnedIds = new Set(JSON.parse(saved));
+		} catch { /* ignore */ }
+	}
+
+	function savePinnedIds() {
+		localStorage.setItem('hichat-pinned', JSON.stringify([...pinnedIds]));
+	}
+
+	function togglePin(id: string) {
+		if (pinnedIds.has(id)) {
+			pinnedIds.delete(id);
+		} else {
+			pinnedIds.add(id);
+		}
+		pinnedIds = new Set(pinnedIds);
+		savePinnedIds();
+	}
+
+	let pinnedConversations = $derived(
+		storedConversations.filter(c => pinnedIds.has(c.id))
+	);
+
+	let filteredConversations = $derived(
+		searchQuery.trim()
+			? storedConversations.filter(c => !pinnedIds.has(c.id) && c.title.toLowerCase().includes(searchQuery.toLowerCase()))
+			: storedConversations.filter(c => !pinnedIds.has(c.id))
+	);
 
 	onMount(() => {
 		// Desktop: show sidebar by default; Mobile: hidden
 		if (window.innerWidth > 768) {
 			sidebarOpen = true;
 		}
+		loadPinnedIds();
 	});
 
 	function handleNewChat() {
@@ -69,16 +104,81 @@
 			</button>
 		</div>
 
+		<!-- Search box -->
+		<div class="sidebar-search" style="position: relative;">
+			<span class="sidebar-search-icon">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="11" cy="11" r="8" />
+					<line x1="21" y1="21" x2="16.65" y2="16.65" />
+				</svg>
+			</span>
+			<input
+				type="text"
+				placeholder="搜索对话..."
+				bind:value={searchQuery}
+			/>
+		</div>
+
 		<!-- History list -->
 		<div class="sidebar-history">
-			<div class="sidebar-section-label">{$t.chatHistory}</div>
-			{#if storedConversations.length > 0}
-				{#each storedConversations as conv}
+			<!-- Pinned conversations -->
+			{#if pinnedConversations.length > 0}
+				<div class="sidebar-section-label">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+						<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+					</svg>
+					置顶对话
+				</div>
+				{#each pinnedConversations as conv}
 					<button
 						class="sidebar-history-item"
 						onclick={() => handleLoadConversation(conv.id)}
 					>
 						<span class="sidebar-history-item-title">{conv.title}</span>
+						<span
+							class="sidebar-history-item-pin"
+							onclick={(e) => { e.stopPropagation(); togglePin(conv.id); }}
+							role="button"
+							tabindex="0"
+							title="取消置顶"
+						>
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+								<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+							</svg>
+						</span>
+						<span
+							class="sidebar-history-item-delete"
+							onclick={(e) => { e.stopPropagation(); handleRemoveConversation(conv.id); }}
+							role="button"
+							tabindex="0"
+						>
+							<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</span>
+					</button>
+				{/each}
+			{/if}
+
+			<div class="sidebar-section-label">{$t.chatHistory}</div>
+			{#if filteredConversations.length > 0}
+				{#each filteredConversations as conv}
+					<button
+						class="sidebar-history-item"
+						onclick={() => handleLoadConversation(conv.id)}
+					>
+						<span class="sidebar-history-item-title">{conv.title}</span>
+						<span
+							class="sidebar-history-item-pin"
+							onclick={(e) => { e.stopPropagation(); togglePin(conv.id); }}
+							role="button"
+							tabindex="0"
+							title="置顶"
+						>
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+							</svg>
+						</span>
 						<span
 							class="sidebar-history-item-delete"
 							onclick={(e) => { e.stopPropagation(); handleRemoveConversation(conv.id); }}
@@ -93,9 +193,31 @@
 				{/each}
 			{:else}
 				<div class="sidebar-empty">
-					{$t.noConversations}
+					{searchQuery ? '没有找到匹配的对话' : $t.noConversations}
 				</div>
 			{/if}
+		</div>
+
+		<!-- Prompt templates -->
+		<div class="sidebar-templates">
+			<div class="sidebar-section-label">快捷提示</div>
+			<div class="sidebar-templates-grid">
+				<button class="sidebar-template-btn" onclick={() => { sendMessage('请帮我翻译以下内容：'); if (window.innerWidth <= 768) sidebarOpen = false; }}>
+					翻译
+				</button>
+				<button class="sidebar-template-btn" onclick={() => { sendMessage('请帮我写一篇文章：'); if (window.innerWidth <= 768) sidebarOpen = false; }}>
+					写作
+				</button>
+				<button class="sidebar-template-btn" onclick={() => { sendMessage('请帮我编写以下代码：'); if (window.innerWidth <= 768) sidebarOpen = false; }}>
+					编程
+				</button>
+				<button class="sidebar-template-btn" onclick={() => { sendMessage('请帮我总结以下内容：'); if (window.innerWidth <= 768) sidebarOpen = false; }}>
+					总结
+				</button>
+				<button class="sidebar-template-btn" onclick={() => { sendMessage('请帮我分析以下内容：'); if (window.innerWidth <= 768) sidebarOpen = false; }}>
+					分析
+				</button>
+			</div>
 		</div>
 
 		<!-- Sidebar footer with language toggle -->
@@ -261,6 +383,57 @@
 	.sidebar-history-item-delete:hover {
 		background: rgba(255, 59, 48, 0.08);
 		color: var(--dbx-function-danger);
+	}
+
+	.sidebar-history-item-pin {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: 24px;
+		height: 24px;
+		border-radius: var(--radius-xxs);
+		color: var(--dbx-text-quaternary);
+		opacity: 0;
+		transition: all var(--transition-fast);
+	}
+
+	.sidebar-history-item:hover .sidebar-history-item-pin {
+		opacity: 1;
+	}
+
+	.sidebar-history-item-pin:hover {
+		color: var(--dbx-brand-primary);
+	}
+
+	/* Sidebar templates */
+	.sidebar-templates {
+		padding: 8px 12px;
+		border-top: 1px solid var(--dbx-line-7);
+	}
+
+	.sidebar-templates-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		padding: 4px 0;
+	}
+
+	.sidebar-template-btn {
+		padding: 6px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		color: var(--dbx-text-tertiary);
+		font-size: 12px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.sidebar-template-btn:hover {
+		border-color: var(--dbx-brand-primary);
+		color: var(--dbx-brand-primary);
+		background: rgba(0, 102, 255, 0.04);
 	}
 
 	.sidebar-empty {

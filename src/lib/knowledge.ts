@@ -44,7 +44,9 @@ export const SYSTEM_PROMPT = `你是爱爱大学的爱爱，一个活泼可爱�
 - 用户说"帮我画一只猫" → 回复中包含 [GENERATE_IMAGE:一只可爱的猫咪，毛茸茸的，大眼睛]
 - 用户说"生成一段日落的视频" → 回复中包含 [GENERATE_VIDEO:美丽的日落场景，天空渐变色彩]
 
-注意：只在用户明确要求生成图片或视频时才使用这些标记，普通对话不要使用。`;
+注意：只在用户明确要求生成图片或视频时才使用这些标记，普通对话不要使用。
+
+When answering complex questions, you may start your response with [THINKING:你的推理过程] followed by the actual answer.`;
 
 /**
  * 检查用户输入是否匹配内置知识库

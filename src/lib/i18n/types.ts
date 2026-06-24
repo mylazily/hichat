@@ -39,4 +39,31 @@ export interface Translations {
 	generationError: string;
 	imageReady: string;
 	videoReady: string;
+	// New keys
+	copySuccess: string;
+	regenerate: string;
+	regenerating: string;
+	exportChat: string;
+	searchPlaceholder: string;
+	noSearchResults: string;
+	pinConversation: string;
+	unpinConversation: string;
+	pinned: string;
+	imageUpload: string;
+	imageSize: string;
+	videoConfig: string;
+	thinking: string;
+	showThinking: string;
+	hideThinking: string;
+	voiceInput: string;
+	voiceListening: string;
+	today: string;
+	yesterday: string;
+	earlier: string;
+	promptTemplates: string;
+	templateTranslate: string;
+	templateWrite: string;
+	templateCode: string;
+	templateSummary: string;
+	templateAnalyze: string;
 }

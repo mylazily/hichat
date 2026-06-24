@@ -4,6 +4,7 @@
 	import ChatMessage from './ChatMessage.svelte';
 	import ChatInput from './ChatInput.svelte';
 	import TypingIndicator from '$lib/components/TypingIndicator.svelte';
+	import Toast from '$lib/components/Toast.svelte';
 
 	let { onToggleSidebar, sidebarOpen }: { onToggleSidebar: () => void; sidebarOpen: boolean } = $props();
 
@@ -11,8 +12,62 @@
 	let scrollContainerEl: HTMLElement = $state(undefined!);
 	let isAtBottom = $state(true);
 	let isProgrammaticScroll = $state(false);
+	let toastMessage = $state('');
+	let toastVisible = $state(false);
 
 	let hasMessages = $derived($messages.length > 0);
+
+	// Prompt templates
+	const promptTemplates = [
+		{ label: '翻译', prompt: '请帮我翻译以下内容：' },
+		{ label: '写作', prompt: '请帮我写一篇文章：' },
+		{ label: '编程', prompt: '请帮我编写以下代码：' },
+		{ label: '总结', prompt: '请帮我总结以下内容：' },
+		{ label: '分析', prompt: '请帮我分析以下内容：' }
+	];
+
+	// Date separator helper
+	function getDateKey(timestamp: number): string {
+		const d = new Date(timestamp);
+		return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+	}
+
+	function formatDate(timestamp: number): string {
+		const d = new Date(timestamp);
+		const now = new Date();
+		const today = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+		const yesterday = new Date(now);
+		yesterday.setDate(yesterday.getDate() - 1);
+		const yesterdayKey = `${yesterday.getFullYear()}-${yesterday.getMonth()}-${yesterday.getDate()}`;
+		const key = getDateKey(timestamp);
+		if (key === today) return '今天';
+		if (key === yesterdayKey) return '昨天';
+		return `${d.getMonth() + 1}月${d.getDate()}日`;
+	}
+
+	// Compute messages with date separators
+	let messagesWithDates = $derived(() => {
+		const result: Array<{ type: 'date'; date: string; key: string } | { type: 'message'; message: typeof $messages[0] }> = [];
+		let lastDateKey = '';
+		for (const msg of $messages) {
+			const dateKey = getDateKey(msg.timestamp);
+			if (dateKey !== lastDateKey) {
+				result.push({ type: 'date', date: formatDate(msg.timestamp), key: dateKey });
+				lastDateKey = dateKey;
+			}
+			result.push({ type: 'message', message: msg });
+		}
+		return result;
+	});
+
+	function showToast(msg: string) {
+		toastMessage = msg;
+		toastVisible = true;
+	}
+
+	function handleToastDone() {
+		toastVisible = false;
+	}
 
 	function checkIsAtBottom() {
 		if (isProgrammaticScroll) return;
@@ -75,8 +130,20 @@
 				class="messages-scroll"
 			>
 				<div class="messages-container">
-					{#each $messages as message (message.id)}
-						<ChatMessage {message} isStreaming={$isStreaming} isLastMessage={message === $messages[$messages.length - 1]} />
+					{#each messagesWithDates() as item (item.type === 'date' ? item.key : item.message.id)}
+						{#if item.type === 'date'}
+							<div class="date-separator">
+								<span class="date-separator-text">{item.date}</span>
+							</div>
+						{:else}
+							<ChatMessage
+								message={item.message}
+								isStreaming={$isStreaming}
+								isLastMessage={item.message === $messages[$messages.length - 1]}
+								onCopy={showToast}
+								onRegenerate={handleSend}
+							/>
+						{/if}
 					{/each}
 
 					<!-- Thinking indicator -->
@@ -113,6 +180,25 @@
 					{/each}
 				</div>
 			</div>
+		{/if}
+
+		<!-- Prompt templates bar (only when no messages) -->
+		{#if !hasMessages}
+			<div class="prompt-templates">
+				{#each promptTemplates as tpl}
+					<button
+						class="prompt-template-btn"
+						onclick={() => handleSend(tpl.prompt)}
+					>
+						{tpl.label}
+					</button>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- Toast notification -->
+		{#if toastVisible}
+			<Toast message={toastMessage} onDone={handleToastDone} />
 		{/if}
 
 		<ChatInput
