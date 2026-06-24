@@ -26,7 +26,7 @@ export const en: Translations = {
 	aiUniversityAddress: 'AiAi University latest address',
 	aiBroadcastAddress: 'AiAi Broadcast latest address',
 	hello: 'Hello~',
-	presetQuestions: ['Who are you?', 'AiAi University address', 'AiAi Broadcast address', 'Hello~'],
+	presetQuestions: ['Who are you?', 'AiAi University address', 'What\'s the weather today?', 'What time is it?', 'Any news?'],
 	loadingHistory: 'Loading...',
 	loadHistoryEmpty: 'No history yet',
 	loadHistoryFailed: 'Failed to load history',
@@ -38,7 +38,7 @@ export const en: Translations = {
 	generationError: 'Generation failed',
 	imageReady: 'Image generated',
 	videoReady: 'Video generated',
-	// New keys
+	// Tool-related keys
 	copySuccess: 'Copied to clipboard',
 	regenerate: 'Regenerate',
 	regenerating: 'Regenerating...',
@@ -64,5 +64,29 @@ export const en: Translations = {
 	templateWrite: 'Write',
 	templateCode: 'Code',
 	templateSummary: 'Summarize',
-	templateAnalyze: 'Analyze'
+	templateAnalyze: 'Analyze',
+	// New tool & feature keys
+	toolWeather: 'Getting weather...',
+	toolTime: 'Getting time...',
+	toolNews: 'Getting news...',
+	toolSearch: 'Searching...',
+	toolCalling: 'Calling tool...',
+	toolResult: 'Tool Result',
+	toolError: 'Tool call failed',
+	citationSource: 'Source',
+	citationVisit: 'Visit',
+	quizQuestion: 'Question {n}',
+	quizSubmit: 'Submit Answer',
+	quizCorrect: 'Correct!',
+	quizWrong: 'Wrong answer',
+	quizScore: 'Score',
+	quizNext: 'Next',
+	quizStart: 'Start Quiz',
+	pipelineStep: 'Step',
+	pipelineProgress: 'In Progress',
+	pipelineComplete: 'Completed',
+	researchMode: 'Research Mode',
+	researchPlan: 'Research Plan',
+	codeCopy: 'Copy code',
+	codeCopied: 'Copied!'
 };

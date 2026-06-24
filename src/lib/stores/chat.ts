@@ -1,11 +1,37 @@
 import { writable, get } from 'svelte/store';
 import { streamChatCompletion, generateImage, createVideoTask, getVideoStatus } from '$lib/api/agnes-ai';
 import type { AgnesAIConfig } from '$lib/api/agnes-ai';
+import { getWeather, getCurrentTime, getNews, webSearch } from '$lib/api/tools';
 import { matchKnowledge, SYSTEM_PROMPT } from '$lib/knowledge';
+
+export interface ToolCall {
+	type: 'weather' | 'time' | 'news' | 'search';
+	parameter: string;
+	status: 'calling' | 'success' | 'error';
+	result?: string;
+}
+
+export interface Citation {
+	title: string;
+	url: string;
+	snippet: string;
+}
+
+export interface QuizQuestion {
+	question: string;
+	options: string[];
+	answer: number;
+	explanation: string;
+}
+
+export interface PipelineStep {
+	name: string;
+	status: 'pending' | 'running' | 'done';
+}
 
 export interface Message {
 	id: string;
-	role: 'user' | 'assistant' | 'system';
+	role: 'user' | 'assistant' | 'system' | 'tool';
 	content: string;
 	timestamp: number;
 	isStreaming?: boolean;
@@ -14,11 +40,16 @@ export interface Message {
 	videoUrl?: string;
 	generationStatus?: 'generating' | 'polling' | 'ready' | 'error';
 	generationError?: string;
-	// NEW fields:
-	imageAttachments?: string[];  // base64 images attached by user
-	isRegenerated?: boolean;       // flag for regenerated messages
-	thinkingContent?: string;     // thinking mode content
-	showThinking?: boolean;        // whether thinking is expanded
+	imageAttachments?: string[];
+	isRegenerated?: boolean;
+	thinkingContent?: string;
+	showThinking?: boolean;
+	// New fields for tools & features
+	toolCalls?: ToolCall[];
+	citations?: Citation[];
+	quizQuestions?: QuizQuestion[];
+	pipelineSteps?: PipelineStep[];
+	researchTopic?: string;
 }
 
 export interface StoredConversation {
@@ -101,23 +132,35 @@ let currentConversationId = generateId();
 // Abort controller for stopping streaming
 let abortController: AbortController | null = null;
 
-// Parse multimodal markers from AI response
-function parseMultimodalMarkers(content: string): {
+// Parse ALL markers from AI response
+function parseAllMarkers(content: string): {
 	cleanContent: string;
 	imagePrompts: string[];
 	videoPrompts: string[];
 	thinkingContent: string;
+	toolCalls: ToolCall[];
+	citations: Citation[];
+	quizQuestions: QuizQuestion[];
+	pipelineSteps: PipelineStep[];
+	researchTopic: string;
 } {
 	const imagePrompts: string[] = [];
 	const videoPrompts: string[] = [];
+	const toolCalls: ToolCall[] = [];
+	const citations: Citation[] = [];
+	const quizQuestions: QuizQuestion[] = [];
+	let pipelineSteps: PipelineStep[] = [];
+	let researchTopic = '';
 
+	// Extract image prompts
 	const imageRegex = /\[GENERATE_IMAGE:(.*?)\]/g;
-	const videoRegex = /\[GENERATE_VIDEO:(.*?)\]/g;
-
 	let match;
 	while ((match = imageRegex.exec(content)) !== null) {
 		imagePrompts.push(match[1].trim());
 	}
+
+	// Extract video prompts
+	const videoRegex = /\[GENERATE_VIDEO:(.*?)\]/g;
 	while ((match = videoRegex.exec(content)) !== null) {
 		videoPrompts.push(match[1].trim());
 	}
@@ -130,13 +173,99 @@ function parseMultimodalMarkers(content: string): {
 		thinkingContent = thinkingMatch[1].trim();
 	}
 
+	// Extract tool calls
+	const toolWeatherRegex = /\[TOOL_WEATHER:(.*?)\]/g;
+	while ((match = toolWeatherRegex.exec(content)) !== null) {
+		toolCalls.push({ type: 'weather', parameter: match[1].trim(), status: 'calling' });
+	}
+
+	const toolTimeRegex = /\[TOOL_TIME:(.*?)\]/g;
+	while ((match = toolTimeRegex.exec(content)) !== null) {
+		toolCalls.push({ type: 'time', parameter: match[1].trim(), status: 'calling' });
+	}
+
+	const toolNewsRegex = /\[TOOL_NEWS:(.*?)\]/g;
+	while ((match = toolNewsRegex.exec(content)) !== null) {
+		toolCalls.push({ type: 'news', parameter: match[1].trim(), status: 'calling' });
+	}
+
+	const toolSearchRegex = /\[TOOL_SEARCH:(.*?)\]/g;
+	while ((match = toolSearchRegex.exec(content)) !== null) {
+		toolCalls.push({ type: 'search', parameter: match[1].trim(), status: 'calling' });
+	}
+
+	// Extract citations
+	const citationRegex = /\[CITATION:(\{.*?\})\]/g;
+	while ((match = citationRegex.exec(content)) !== null) {
+		try {
+			const citation = JSON.parse(match[1]);
+			if (citation.title && citation.url) {
+				citations.push(citation);
+			}
+		} catch { /* ignore parse errors */ }
+	}
+
+	// Extract quiz questions
+	const quizRegex = /\[QUIZ:(\{.*?\})\]/g;
+	while ((match = quizRegex.exec(content)) !== null) {
+		try {
+			const quiz = JSON.parse(match[1]);
+			if (quiz.question && quiz.options && typeof quiz.answer === 'number') {
+				quizQuestions.push(quiz);
+			}
+		} catch { /* ignore parse errors */ }
+	}
+
+	// Extract pipeline steps
+	const pipelineRegex = /\[PIPELINE:(.*?)\]/g;
+	while ((match = pipelineRegex.exec(content)) !== null) {
+		const steps = match[1].split(',').map((s: string) => s.trim());
+		pipelineSteps = steps.map((name: string) => ({ name, status: 'pending' as const }));
+	}
+
+	// Extract research topic
+	const researchRegex = /\[RESEARCH:(.*?)\]/g;
+	const researchMatch = researchRegex.exec(content);
+	if (researchMatch) {
+		researchTopic = researchMatch[1].trim();
+	}
+
+	// Clean content - remove all markers
 	const cleanContent = content
 		.replace(/\[GENERATE_IMAGE:.*?\]/g, '')
 		.replace(/\[GENERATE_VIDEO:.*?\]/g, '')
 		.replace(/\[THINKING:.*?\]/gs, '')
+		.replace(/\[TOOL_WEATHER:.*?\]/g, '')
+		.replace(/\[TOOL_TIME:.*?\]/g, '')
+		.replace(/\[TOOL_NEWS:.*?\]/g, '')
+		.replace(/\[TOOL_SEARCH:.*?\]/g, '')
+		.replace(/\[CITATION:\{.*?\}\]/g, '')
+		.replace(/\[QUIZ:\{.*?\}\]/g, '')
+		.replace(/\[PIPELINE:.*?\]/g, '')
+		.replace(/\[RESEARCH:.*?\]/g, '')
 		.trim();
 
-	return { cleanContent, imagePrompts, videoPrompts, thinkingContent };
+	return { cleanContent, imagePrompts, videoPrompts, thinkingContent, toolCalls, citations, quizQuestions, pipelineSteps, researchTopic };
+}
+
+// Execute a tool call and return the result
+async function executeToolCall(toolCall: ToolCall): Promise<string> {
+	try {
+		switch (toolCall.type) {
+			case 'weather':
+				return await getWeather(toolCall.parameter);
+			case 'time':
+				return getCurrentTime(toolCall.parameter === 'auto' ? undefined : toolCall.parameter);
+			case 'news':
+				return await getNews(toolCall.parameter);
+			case 'search':
+				return await webSearch(toolCall.parameter);
+			default:
+				return '未知工具类型';
+		}
+	} catch (err) {
+		return `工具调用失败: ${err instanceof Error ? err.message : '未知错误'}`;
+	}
 }
 
 // Handle image generation
@@ -175,7 +304,6 @@ async function handleImageGeneration(prompt: string) {
 		);
 	}
 
-	// Save to storage after image generation completes
 	const allMsgs = [...get(messages)];
 	addConversationToStorage(currentConversationId, '', allMsgs);
 }
@@ -209,7 +337,6 @@ async function handleVideoGeneration(prompt: string) {
 			return;
 		}
 
-		// Switch to polling status
 		messages.update(msgs =>
 			msgs.map(m =>
 				m.id === videoMsgId
@@ -218,7 +345,6 @@ async function handleVideoGeneration(prompt: string) {
 			)
 		);
 
-		// Poll for video status every 5 seconds
 		const pollInterval = setInterval(async () => {
 			try {
 				const status = await getVideoStatus(taskId, config);
@@ -231,7 +357,6 @@ async function handleVideoGeneration(prompt: string) {
 								: m
 						)
 					);
-					// Save to storage after video generation completes
 					const allMsgs = [...get(messages)];
 					addConversationToStorage(currentConversationId, '', allMsgs);
 				} else if (status.status === 'failed' || status.status === 'error') {
@@ -249,7 +374,6 @@ async function handleVideoGeneration(prompt: string) {
 			}
 		}, 5000);
 
-		// Timeout after 5 minutes
 		setTimeout(() => {
 			clearInterval(pollInterval);
 			messages.update(msgs => {
@@ -288,7 +412,6 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 		imageAttachments: imageAttachments
 	};
 
-	// Update messages
 	messages.update(msgs => [...msgs, userMessage]);
 
 	// Check knowledge base first
@@ -303,7 +426,6 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 			multimodalType: 'text'
 		};
 		messages.update(msgs => [...msgs, assistantMessage]);
-		// Save to storage
 		const allMsgs = [...get(messages)];
 		addConversationToStorage(currentConversationId, text.slice(0, 30), allMsgs);
 		return;
@@ -341,8 +463,7 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 	const allMsgs = get(messages);
 	const apiMessages: { role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }[] = [
 		{ role: 'system', content: SYSTEM_PROMPT },
-		...allMsgs.filter(m => m.role !== 'system').map(m => {
-			// If user message has image attachments, use vision format
+		...allMsgs.filter(m => m.role !== 'system' && m.role !== 'tool').map(m => {
 			if (m.role === 'user' && m.imageAttachments && m.imageAttachments.length > 0) {
 				const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
 				if (m.content) {
@@ -384,23 +505,149 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 			if (chunk.done) break;
 		}
 
-		// Parse multimodal markers from the completed response
-		const { cleanContent, imagePrompts, videoPrompts, thinkingContent } = parseMultimodalMarkers(fullContent);
+		// Parse ALL markers from the completed response
+		const parsed = parseAllMarkers(fullContent);
 
-		// Update the text message with cleaned content and thinking
+		// Update the text message with cleaned content and all parsed data
 		messages.update(msgs =>
 			msgs.map(m =>
 				m.id === assistantId
-					? { ...m, content: cleanContent, isStreaming: false, thinkingContent: thinkingContent || undefined, showThinking: !!thinkingContent }
+					? {
+						...m,
+						content: parsed.cleanContent,
+						isStreaming: false,
+						thinkingContent: parsed.thinkingContent || undefined,
+						showThinking: !!parsed.thinkingContent,
+						toolCalls: parsed.toolCalls.length > 0 ? parsed.toolCalls : undefined,
+						citations: parsed.citations.length > 0 ? parsed.citations : undefined,
+						quizQuestions: parsed.quizQuestions.length > 0 ? parsed.quizQuestions : undefined,
+						pipelineSteps: parsed.pipelineSteps.length > 0 ? parsed.pipelineSteps : undefined,
+						researchTopic: parsed.researchTopic || undefined
+					}
 					: m
 			)
 		);
 
+		// Execute tool calls in parallel
+		if (parsed.toolCalls.length > 0) {
+			const toolResults: string[] = [];
+
+			// Execute all tool calls
+			const promises = parsed.toolCalls.map(async (tc) => {
+				const result = await executeToolCall(tc);
+				// Update tool call status
+				messages.update(msgs =>
+					msgs.map(m => {
+						if (m.id !== assistantId || !m.toolCalls) return m;
+						return {
+							...m,
+							toolCalls: m.toolCalls.map(t =>
+								t === tc ? { ...t, status: 'success' as const, result } : t
+							)
+						};
+					})
+				);
+				return result;
+			});
+
+			const results = await Promise.all(promises);
+
+			// Add tool results as context and re-ask AI for a better answer
+			if (results.length > 0) {
+				const toolContext = results.map((r, i) => {
+					const toolName = parsed.toolCalls[i].type;
+					return `[工具结果-${toolName}]: ${r}`;
+				}).join('\n\n');
+
+				// Stream a follow-up response with tool context
+				const followUpId = generateId();
+				const followUpMsg: Message = {
+					id: followUpId,
+					role: 'assistant',
+					content: '',
+					timestamp: Date.now(),
+					isStreaming: true,
+					multimodalType: 'text'
+				};
+				messages.update(msgs => [...msgs, followUpMsg]);
+
+				// Build messages with tool context
+				const followUpApiMessages = [
+					...apiMessages,
+					{ role: 'user', content: text },
+					{ role: 'assistant', content: fullContent },
+					{ role: 'user', content: `请根据以下工具返回的结果，用自然友好的语言回答用户的问题：\n\n${toolContext}` }
+				];
+
+				try {
+					const followUpStream = streamChatCompletion(followUpApiMessages as { role: string; content: string }[], {
+						apiKey: key,
+						model: 'agnes-2.0-flash'
+					});
+					let followUpContent = '';
+					for await (const chunk of followUpStream) {
+						if (chunk.error) {
+							followUpContent += `\n\n[错误: ${chunk.error}]`;
+							break;
+						}
+						if (chunk.content) {
+							followUpContent += chunk.content;
+							messages.update(msgs =>
+								msgs.map(m =>
+									m.id === followUpId
+										? { ...m, content: followUpContent }
+										: m
+								)
+							);
+						}
+						if (chunk.done) break;
+					}
+
+					// Parse any additional markers from follow-up
+					const followUpParsed = parseAllMarkers(followUpContent);
+					messages.update(msgs =>
+						msgs.map(m =>
+							m.id === followUpId
+								? {
+									...m,
+									content: followUpParsed.cleanContent,
+									isStreaming: false,
+									citations: followUpParsed.citations.length > 0 ? followUpParsed.citations : undefined
+								}
+								: m
+						)
+					);
+
+					// Trigger image/video from follow-up
+					for (const prompt of followUpParsed.imagePrompts) {
+						handleImageGeneration(prompt);
+					}
+					for (const prompt of followUpParsed.videoPrompts) {
+						handleVideoGeneration(prompt);
+					}
+				} catch (err) {
+					const errorMsg = err instanceof Error ? err.message : '未知错误';
+					messages.update(msgs =>
+						msgs.map(m =>
+							m.id === followUpId
+								? { ...m, content: `[错误: ${errorMsg}]`, isStreaming: false }
+								: m
+						)
+					);
+				}
+			}
+		}
+
+		// Animate pipeline steps
+		if (parsed.pipelineSteps.length > 0) {
+			animatePipelineSteps(assistantId, parsed.pipelineSteps);
+		}
+
 		// Trigger multimodal generations (don't await - let them run in background)
-		for (const prompt of imagePrompts) {
+		for (const prompt of parsed.imagePrompts) {
 			handleImageGeneration(prompt);
 		}
-		for (const prompt of videoPrompts) {
+		for (const prompt of parsed.videoPrompts) {
 			handleVideoGeneration(prompt);
 		}
 	} catch (err) {
@@ -414,10 +661,39 @@ export async function sendMessage(text: string, imageAttachments?: string[]) {
 		);
 	} finally {
 		isStreaming.set(false);
-		// Save to storage
 		const allMsgs = [...get(messages)];
 		addConversationToStorage(currentConversationId, text.slice(0, 30), allMsgs);
 	}
+}
+
+// Animate pipeline steps sequentially
+function animatePipelineSteps(messageId: string, steps: PipelineStep[]) {
+	let currentStep = 0;
+
+	function animateNext() {
+		if (currentStep >= steps.length) return;
+
+		messages.update(msgs =>
+			msgs.map(m => {
+				if (m.id !== messageId || !m.pipelineSteps) return m;
+				return {
+					...m,
+					pipelineSteps: m.pipelineSteps.map((s, i) => {
+						if (i < currentStep) return { ...s, status: 'done' as const };
+						if (i === currentStep) return { ...s, status: 'running' as const };
+						return s;
+					})
+				};
+			})
+		);
+
+		setTimeout(() => {
+			currentStep++;
+			animateNext();
+		}, 1500);
+	}
+
+	animateNext();
 }
 
 // Stop streaming
@@ -467,10 +743,8 @@ export function regenerateLastMessage() {
 	if (lastAssistantIdx < 0) return;
 	const lastUserIdx = msgs.findLastIndex(m => m.role === 'user');
 	if (lastUserIdx < 0) return;
-	// Remove last assistant message
 	const updated = msgs.slice(0, lastAssistantIdx);
 	messages.set(updated);
-	// Re-send the last user message
 	const userMsg = msgs[lastUserIdx].content;
 	sendMessage(userMsg);
 }

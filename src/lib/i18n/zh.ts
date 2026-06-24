@@ -26,7 +26,7 @@ export const zh: Translations = {
 	aiUniversityAddress: '爱爱大学最新地址',
 	aiBroadcastAddress: '爱播爱播最新地址',
 	hello: '你好呀~',
-	presetQuestions: ['你是谁？', '爱爱大学最新地址', '爱播爱播最新地址', '你好呀~'],
+	presetQuestions: ['你是谁？', '爱爱大学最新地址', '今天天气怎么样', '现在几点了？', '有什么新闻？'],
 	loadingHistory: '加载中...',
 	loadHistoryEmpty: '暂无历史对话',
 	loadHistoryFailed: '加载历史失败',
@@ -38,7 +38,7 @@ export const zh: Translations = {
 	generationError: '生成失败',
 	imageReady: '图片已生成',
 	videoReady: '视频已生成',
-	// New keys
+	// Tool-related keys
 	copySuccess: '已复制到剪贴板',
 	regenerate: '重新生成',
 	regenerating: '正在重新生成...',
@@ -64,5 +64,29 @@ export const zh: Translations = {
 	templateWrite: '写作',
 	templateCode: '编程',
 	templateSummary: '总结',
-	templateAnalyze: '分析'
+	templateAnalyze: '分析',
+	// New tool & feature keys
+	toolWeather: '获取天气中...',
+	toolTime: '获取时间中...',
+	toolNews: '获取新闻中...',
+	toolSearch: '搜索中...',
+	toolCalling: '正在调用工具...',
+	toolResult: '工具结果',
+	toolError: '工具调用失败',
+	citationSource: '来源',
+	citationVisit: '访问',
+	quizQuestion: '第 {n} 题',
+	quizSubmit: '提交答案',
+	quizCorrect: '回答正确！',
+	quizWrong: '回答错误',
+	quizScore: '得分',
+	quizNext: '下一题',
+	quizStart: '开始答题',
+	pipelineStep: '步骤',
+	pipelineProgress: '进行中',
+	pipelineComplete: '已完成',
+	researchMode: '研究模式',
+	researchPlan: '研究计划',
+	codeCopy: '复制代码',
+	codeCopied: '已复制！'
 };

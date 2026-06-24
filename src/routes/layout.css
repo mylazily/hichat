@@ -938,3 +938,19 @@ html, body {
 	animation: fade-in-up 0.3s ease;
 	box-shadow: var(--shadow-md);
 }
+
+/* Research badge */
+.research-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border-radius: var(--radius-xs);
+	background: rgba(0, 102, 255, 0.06);
+	border: 1px solid rgba(0, 102, 255, 0.15);
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--dbx-brand-primary);
+	margin-bottom: 8px;
+	animation: fadeIn 0.2s ease;
+}

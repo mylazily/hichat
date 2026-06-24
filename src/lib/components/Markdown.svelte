@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { marked } from 'marked';
+	import { t } from '$lib/stores/language';
 
 	let {
 		content,
@@ -20,9 +21,65 @@
 		const normalized = normalizeMarkdown(content);
 		return marked(normalized, { breaks: true, gfm: true }) as string;
 	});
+
+	// Add copy buttons to code blocks after render
+	function addCopyButtons() {
+		const container = document.querySelector('.markdown-content-final');
+		if (!container) return;
+
+		const preBlocks = container.querySelectorAll('pre');
+		for (const pre of preBlocks) {
+			if (pre.querySelector('.code-copy-btn')) continue;
+
+			const wrapper = document.createElement('div');
+			wrapper.style.position = 'relative';
+
+			const header = document.createElement('div');
+			header.className = 'code-block-header';
+
+			// Detect language from class
+			const codeEl = pre.querySelector('code');
+			let lang = '';
+			if (codeEl) {
+				const classes = codeEl.className || '';
+				const match = classes.match(/language-(\w+)/);
+				if (match) lang = match[1];
+			}
+
+			const langLabel = document.createElement('span');
+			langLabel.className = 'code-block-lang';
+			langLabel.textContent = lang || 'code';
+			header.appendChild(langLabel);
+
+			const copyBtn = document.createElement('button');
+			copyBtn.className = 'code-copy-btn';
+			copyBtn.textContent = '复制';
+			copyBtn.onclick = () => {
+				const code = pre.querySelector('code');
+				if (code) {
+					navigator.clipboard.writeText(code.textContent || '').then(() => {
+						copyBtn.textContent = '已复制！';
+						setTimeout(() => { copyBtn.textContent = '复制'; }, 2000);
+					});
+				}
+			};
+			header.appendChild(copyBtn);
+
+			pre.parentNode?.insertBefore(wrapper, pre);
+			wrapper.appendChild(header);
+			wrapper.appendChild(pre);
+		}
+	}
+
+	$effect(() => {
+		const _ = renderedHtml;
+		tick().then(() => {
+			addCopyButtons();
+		});
+	});
 </script>
 
-<div class="markdown-content {className}">
+<div class="markdown-content {className} markdown-content-final">
 	{@html renderedHtml}
 </div>
 
@@ -62,7 +119,7 @@
 	}
 
 	.markdown-content :global(a) {
-		color: var(--dbx-fill-primary);
+		color: var(--dbx-brand-primary);
 		text-decoration: none;
 	}
 
@@ -75,14 +132,14 @@
 		font-size: 0.875em;
 		background: var(--dbx-fill-trans-10);
 		padding: 0.125em 0.375em;
-		border-radius: var(--radius-sm);
+		border-radius: var(--radius-xxs);
 	}
 
 	.markdown-content :global(pre) {
 		margin: 0.75em 0;
-		border-radius: var(--radius-lg);
-		background: var(--dbx-bg-elevated);
-		border: 1px solid var(--dbx-line-7);
+		border-radius: var(--radius-s);
+		background: #1e1e1e;
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		overflow-x: auto;
 	}
 
@@ -93,6 +150,44 @@
 		line-height: 1.5;
 		background: transparent;
 		border-radius: 0;
+		color: #d4d4d4;
+	}
+
+	/* Code block header with copy button */
+	.markdown-content :global(.code-block-header) {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 6px 12px;
+		background: rgba(255, 255, 255, 0.05);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: var(--radius-s) var(--radius-s) 0 0;
+	}
+
+	.markdown-content :global(.code-block-lang) {
+		font-size: 11px;
+		font-weight: 500;
+		color: rgba(255, 255, 255, 0.4);
+		text-transform: uppercase;
+			font-family: var(--font-mono);
+	}
+
+	.markdown-content :global(.code-copy-btn) {
+		padding: 3px 10px;
+		border-radius: var(--radius-xxs);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		background: transparent;
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 11px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+		font-family: var(--font-sans);
+	}
+
+	.markdown-content :global(.code-copy-btn:hover) {
+		background: rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.8);
+		border-color: rgba(255, 255, 255, 0.25);
 	}
 
 	.markdown-content :global(ul),
@@ -139,6 +234,6 @@
 
 	.markdown-content :global(img) {
 		max-width: 100%;
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-l);
 	}
 </style>

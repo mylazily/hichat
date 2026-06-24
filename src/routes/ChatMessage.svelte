@@ -2,6 +2,10 @@
 	import type { Message } from '$lib/stores/chat';
 	import Markdown from '$lib/components/Markdown.svelte';
 	import TypingIndicator from '$lib/components/TypingIndicator.svelte';
+	import ToolIndicator from '$lib/components/ToolIndicator.svelte';
+	import CitationCard from '$lib/components/CitationCard.svelte';
+	import QuizCard from '$lib/components/QuizCard.svelte';
+	import PipelineProgress from '$lib/components/PipelineProgress.svelte';
 	import { t } from '$lib/stores/language';
 
 	interface Props {
@@ -31,7 +35,6 @@
 		navigator.clipboard.writeText(text).then(() => {
 			if (onCopy) onCopy('已复制到剪贴板');
 		}).catch(() => {
-			// Fallback
 			const textarea = document.createElement('textarea');
 			textarea.value = text;
 			document.body.appendChild(textarea);
@@ -80,7 +83,6 @@
 	<div class="msg-ai">
 		<div class="msg-ai-inner">
 			{#if message.generationStatus === 'generating' || message.generationStatus === 'polling'}
-				<!-- Image generating: skeleton placeholder 1:1 ratio with spinner -->
 				<div class="gen-card">
 					<div class="gen-skeleton gen-skeleton-image">
 						<div class="gen-skeleton-spinner">
@@ -92,7 +94,6 @@
 					</div>
 				</div>
 			{:else if message.generationStatus === 'ready' && message.imageUrl}
-				<!-- Image ready: image display + download button -->
 				<div class="gen-card">
 					<div class="gen-image">
 						<img src={message.imageUrl} alt={message.content || '生成的图片'} loading="lazy" />
@@ -110,7 +111,6 @@
 					</button>
 				</div>
 			{:else if message.generationStatus === 'error'}
-				<!-- Image error -->
 				<div class="gen-error">
 					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<circle cx="12" cy="12" r="10" />
@@ -128,7 +128,6 @@
 	<div class="msg-ai">
 		<div class="msg-ai-inner">
 			{#if message.generationStatus === 'generating'}
-				<!-- Video generating: skeleton placeholder 16:9 ratio with spinner -->
 				<div class="gen-card">
 					<div class="gen-skeleton gen-skeleton-video">
 						<div class="gen-skeleton-spinner">
@@ -140,7 +139,6 @@
 					</div>
 				</div>
 			{:else if message.generationStatus === 'polling'}
-				<!-- Video polling -->
 				<div class="gen-card">
 					<div class="gen-skeleton gen-skeleton-video">
 						<div class="gen-skeleton-spinner">
@@ -152,7 +150,6 @@
 					</div>
 				</div>
 			{:else if message.generationStatus === 'ready' && message.videoUrl}
-				<!-- Video ready: video player + download button -->
 				<div class="gen-card">
 					<div class="gen-video">
 						<video controls playsinline preload="metadata">
@@ -173,7 +170,6 @@
 					</button>
 				</div>
 			{:else if message.generationStatus === 'error'}
-				<!-- Video error -->
 				<div class="gen-error">
 					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<circle cx="12" cy="12" r="10" />
@@ -190,8 +186,18 @@
 	<!-- AI text message: NO background, NO bubble, plain text left-aligned, NO avatar -->
 	<div class="msg-ai">
 		<div class="msg-ai-inner">
+			<!-- Tool call indicators -->
+			{#if message.toolCalls && message.toolCalls.length > 0}
+				<ToolIndicator toolCalls={message.toolCalls} />
+			{/if}
+
+			<!-- Pipeline progress -->
+			{#if message.pipelineSteps && message.pipelineSteps.length > 0}
+				<PipelineProgress steps={message.pipelineSteps} />
+			{/if}
+
 			<!-- Thinking block -->
-			{#if message.isStreaming && message.content === ''}
+			{#if message.isStreaming && message.content === '' && !message.toolCalls}
 				<div class="thinking-block">
 					<div class="thinking-header" onclick={() => thinkingExpanded = !thinkingExpanded}>
 						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -211,18 +217,60 @@
 				</div>
 			{/if}
 
+			<!-- Thinking content (from AI response) -->
+			{#if message.thinkingContent && message.showThinking && !message.isStreaming}
+				<div class="thinking-block">
+					<div class="thinking-header" onclick={() => { message.showThinking = !message.showThinking; }}>
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="10" />
+							<path d="M12 16v-4M12 8h.01" />
+						</svg>
+						{$t.thinking}
+						<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: auto; transition: transform 0.2s; transform: rotate({message.showThinking ? 180 : 0}deg);">
+							<polyline points="6 9 12 15 18 9" />
+						</svg>
+					</div>
+					{#if message.showThinking}
+						<div class="thinking-content">
+							{message.thinkingContent}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Research topic badge -->
+			{#if message.researchTopic}
+				<div class="research-badge">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="11" cy="11" r="8" />
+						<line x1="21" y1="21" x2="16.65" y2="16.65" />
+					</svg>
+					{$t.researchMode}: {message.researchTopic}
+				</div>
+			{/if}
+
 			<div class="msg-bot-color">
-				{#if message.isStreaming && message.content === '' && !thinkingExpanded}
+				{#if message.isStreaming && message.content === '' && !thinkingExpanded && !message.toolCalls}
 					<TypingIndicator />
 				{:else if message.content}
 					<Markdown content={message.content} />
 					{#if message.isStreaming && isLastMessage}
 						<span class="streaming-cursor"></span>
 					{/if}
-				{:else}
+				{:else if !message.toolCalls}
 					<TypingIndicator />
 				{/if}
 			</div>
+
+			<!-- Citation cards -->
+			{#if message.citations && message.citations.length > 0}
+				<CitationCard citations={message.citations} />
+			{/if}
+
+			<!-- Quiz card -->
+			{#if message.quizQuestions && message.quizQuestions.length > 0}
+				<QuizCard questions={message.quizQuestions} />
+			{/if}
 
 			<!-- Action buttons for AI text messages -->
 			{#if message.content && !message.isStreaming}

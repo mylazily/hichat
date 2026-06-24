@@ -39,7 +39,7 @@ export interface Translations {
 	generationError: string;
 	imageReady: string;
 	videoReady: string;
-	// New keys
+	// Tool-related keys
 	copySuccess: string;
 	regenerate: string;
 	regenerating: string;
@@ -66,4 +66,28 @@ export interface Translations {
 	templateCode: string;
 	templateSummary: string;
 	templateAnalyze: string;
+	// New tool & feature keys
+	toolWeather: string;
+	toolTime: string;
+	toolNews: string;
+	toolSearch: string;
+	toolCalling: string;
+	toolResult: string;
+	toolError: string;
+	citationSource: string;
+	citationVisit: string;
+	quizQuestion: string;
+	quizSubmit: string;
+	quizCorrect: string;
+	quizWrong: string;
+	quizScore: string;
+	quizNext: string;
+	quizStart: string;
+	pipelineStep: string;
+	pipelineProgress: string;
+	pipelineComplete: string;
+	researchMode: string;
+	researchPlan: string;
+	codeCopy: string;
+	codeCopied: string;
 }
