@@ -88,5 +88,42 @@ export const en: Translations = {
 	researchMode: 'Research Mode',
 	researchPlan: 'Research Plan',
 	codeCopy: 'Copy code',
-	codeCopied: 'Copied!'
+	codeCopied: 'Copied!',
+	// MCP tools
+	mcpTool: 'MCP Tool',
+	mcpCalculator: 'Calculator',
+	mcpCodeRunner: 'Code Runner',
+	mcpJSONFormatter: 'JSON Formatter',
+	mcpTextTransform: 'Text Transform',
+	mcpDateTime: 'Date & Time',
+	// SSH terminal
+	sshTerminal: 'SSH Terminal',
+	sshOpen: 'Open Terminal',
+	sshClose: 'Close Terminal',
+	// Knowledge base
+	knowledgeBase: 'Knowledge Base',
+	kbAddDoc: 'Add Document',
+	kbSearch: 'Search Knowledge Base',
+	kbNoDocs: 'No documents yet',
+	kbDocTitle: 'Document Title',
+	kbDocContent: 'Document Content',
+	kbDocTags: 'Tags',
+	// Assistant
+	assistantRole: 'Assistant Role',
+	assistantSwitch: 'Switch Assistant',
+	assistantCustom: 'Custom Assistant',
+	assistantCreate: 'Create Assistant',
+	assistantDelete: 'Delete Assistant',
+	assistantName: 'Assistant Name',
+	assistantDesc: 'Description',
+	assistantPrompt: 'System Prompt',
+	assistantIcon: 'Icon',
+	assistantColor: 'Color',
+	// File manager
+	fileManager: 'File Manager',
+	fileUpload: 'Upload File',
+	filePreview: 'Preview',
+	fileDelete: 'Delete File',
+	fileCategory: 'Category',
+	fileBatchDelete: 'Batch Delete'
 };

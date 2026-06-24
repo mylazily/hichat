@@ -88,5 +88,42 @@ export const zh: Translations = {
 	researchMode: '研究模式',
 	researchPlan: '研究计划',
 	codeCopy: '复制代码',
-	codeCopied: '已复制！'
+	codeCopied: '已复制！',
+	// MCP tools
+	mcpTool: 'MCP 工具',
+	mcpCalculator: '计算器',
+	mcpCodeRunner: '代码执行',
+	mcpJSONFormatter: 'JSON 格式化',
+	mcpTextTransform: '文本转换',
+	mcpDateTime: '日期时间',
+	// SSH terminal
+	sshTerminal: 'SSH 终端',
+	sshOpen: '打开终端',
+	sshClose: '关闭终端',
+	// Knowledge base
+	knowledgeBase: '知识库',
+	kbAddDoc: '添加文档',
+	kbSearch: '搜索知识库',
+	kbNoDocs: '暂无文档',
+	kbDocTitle: '文档标题',
+	kbDocContent: '文档内容',
+	kbDocTags: '标签',
+	// Assistant
+	assistantRole: '助手角色',
+	assistantSwitch: '切换助手',
+	assistantCustom: '自定义助手',
+	assistantCreate: '创建助手',
+	assistantDelete: '删除助手',
+	assistantName: '助手名称',
+	assistantDesc: '助手描述',
+	assistantPrompt: '系统提示词',
+	assistantIcon: '图标',
+	assistantColor: '颜色',
+	// File manager
+	fileManager: '文件管理',
+	fileUpload: '上传文件',
+	filePreview: '预览',
+	fileDelete: '删除文件',
+	fileCategory: '分类',
+	fileBatchDelete: '批量删除'
 };

@@ -6,7 +6,19 @@
 	import TypingIndicator from '$lib/components/TypingIndicator.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 
-	let { onToggleSidebar, sidebarOpen }: { onToggleSidebar: () => void; sidebarOpen: boolean } = $props();
+	import type { AssistantRole } from '$lib/stores/assistants';
+
+	let {
+		onToggleSidebar,
+		sidebarOpen,
+		currentAssistant,
+		onToggleSSH
+	}: {
+		onToggleSidebar: () => void;
+		sidebarOpen: boolean;
+		currentAssistant: AssistantRole;
+		onToggleSSH: () => void;
+	} = $props();
 
 	let messagesEnd: HTMLDivElement = $state(undefined!);
 	let scrollContainerEl: HTMLElement = $state(undefined!);
@@ -129,13 +141,21 @@
 			</button>
 		{/if}
 
-		<!-- App title with pink gradient icon -->
+		<!-- App title with current assistant icon -->
 		<div class="header-title-group">
-			<div class="header-title-icon">
-				<span class="header-title-icon-text">爱</span>
+			<div class="header-title-icon" style="background: linear-gradient(135deg, {currentAssistant.color}, {currentAssistant.color}dd);">
+				<span class="header-title-icon-text">{currentAssistant.icon}</span>
 			</div>
-			<h1 class="header-title">{$t.appTitle}</h1>
+			<h1 class="header-title">{currentAssistant.name}</h1>
 		</div>
+
+		<!-- SSH terminal toggle -->
+		<button class="header-btn" onclick={onToggleSSH} title="SSH 终端">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<polyline points="4 17 10 11 4 5" />
+				<line x1="12" y1="19" x2="20" y2="19" />
+			</svg>
+		</button>
 
 		<!-- TTS stop button -->
 		<button class="header-btn" onclick={stopSpeaking} title="停止朗读">

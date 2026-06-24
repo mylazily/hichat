@@ -5,9 +5,12 @@ import { getWeather, getCurrentTime, getNews } from '$lib/api/tools';
 import { deepSearch, formatSearchContext } from '$lib/api/search';
 import { matchKnowledge, SYSTEM_PROMPT } from '$lib/knowledge';
 import { getMemoryContext, extractMemoriesFromResponse } from '$lib/stores/memory';
+import { parseMCPToolCalls, cleanMCPMarkers, executeMCPTool } from '$lib/api/mcp';
+import { getCurrentAssistant } from '$lib/stores/assistants';
+import { getKnowledgeBaseContext } from '$lib/stores/knowledge-base';
 
 export interface ToolCall {
-	type: 'weather' | 'time' | 'news' | 'websearch' | 'deepsearch';
+	type: 'weather' | 'time' | 'news' | 'websearch' | 'deepsearch' | 'mcp';
 	parameter: string;
 	status: 'calling' | 'success' | 'error';
 	result?: string;
@@ -203,6 +206,12 @@ function parseAllMarkers(content: string): {
 		toolCalls.push({ type: 'deepsearch', parameter: match[1].trim(), status: 'calling' });
 	}
 
+	// Extract MCP tool calls
+	const mcpToolCalls = parseMCPToolCalls(content);
+	for (const mcpCall of mcpToolCalls) {
+		toolCalls.push({ type: 'mcp', parameter: JSON.stringify(mcpCall), status: 'calling' });
+	}
+
 	// Extract citations
 	const citationRegex = /\[CITATION:(\{.*?\})\]/g;
 	while ((match = citationRegex.exec(content)) !== null) {
@@ -240,7 +249,7 @@ function parseAllMarkers(content: string): {
 	}
 
 	// Clean content - remove all markers
-	const cleanContent = content
+	let cleanContent = content
 		.replace(/\[GENERATE_IMAGE:.*?\]/g, '')
 		.replace(/\[GENERATE_VIDEO:.*?\]/g, '')
 		.replace(/\[THINKING:.*?\]/gs, '')
@@ -255,6 +264,9 @@ function parseAllMarkers(content: string): {
 		.replace(/\[RESEARCH:.*?\]/g, '')
 		.replace(/\[REMEMBER:[^\]]+\]/g, '')
 		.trim();
+
+	// Clean MCP markers
+	cleanContent = cleanMCPMarkers(cleanContent);
 
 	return { cleanContent, imagePrompts, videoPrompts, thinkingContent, toolCalls, citations, quizQuestions, pipelineSteps, researchTopic };
 }
@@ -276,6 +288,10 @@ async function executeToolCall(toolCall: ToolCall): Promise<string> {
 			case 'deepsearch': {
 				const { results, summaries } = await deepSearch(toolCall.parameter);
 				return formatSearchContext(results, summaries);
+			}
+			case 'mcp': {
+				const mcpCall = JSON.parse(toolCall.parameter);
+				return await executeMCPTool(mcpCall);
 			}
 			default:
 				return '未知工具类型';
@@ -418,7 +434,7 @@ async function handleVideoGeneration(prompt: string) {
 }
 
 // Send message
-export async function sendMessage(text: string, imageAttachments?: string[], fileAttachments?: { name: string; content: string }[]) {
+export async function sendMessage(text: string, imageAttachments: string[] | undefined, fileAttachments: { name: string; content: string }[] | undefined) {
 	if (get(isStreaming)) return;
 
 	const userMessage: Message = {
@@ -477,9 +493,26 @@ export async function sendMessage(text: string, imageAttachments?: string[], fil
 	};
 	messages.update(msgs => [...msgs, assistantMessage]);
 
-	// Build system prompt with memory context
+	// Build system prompt with assistant, knowledge base, memory context
+	const currentAssistant = getCurrentAssistant();
+	const baseSystemPrompt = currentAssistant?.systemPrompt || SYSTEM_PROMPT;
+	const knowledgeContext = getKnowledgeBaseContext(text);
 	const memoryContext = getMemoryContext();
-	const systemPrompt = SYSTEM_PROMPT + memoryContext;
+
+	let systemPrompt = baseSystemPrompt;
+
+	// Append SYSTEM_PROMPT tool instructions, MCP instructions, multimodal instructions, other features
+	systemPrompt += '\n\n' + SYSTEM_PROMPT;
+
+	// Append knowledge base context
+	if (knowledgeContext) {
+		systemPrompt += '\n\n' + knowledgeContext;
+	}
+
+	// Append memory context
+	if (memoryContext) {
+		systemPrompt += '\n\n' + memoryContext;
+	}
 
 	// Build API messages - support image attachments as vision input
 	const allMsgs = get(messages);
@@ -560,7 +593,7 @@ export async function sendMessage(text: string, imageAttachments?: string[], fil
 			)
 		);
 
-		// Execute tool calls in parallel
+		// Execute tool calls in parallel (including MCP tool calls)
 		if (parsed.toolCalls.length > 0) {
 			// Execute all tool calls
 			const promises = parsed.toolCalls.map(async (tc) => {
@@ -633,7 +666,7 @@ export async function sendMessage(text: string, imageAttachments?: string[], fil
 						if (chunk.done) break;
 					}
 
-					// Parse any additional markers from follow-up
+					// Parse any additional markers from follow-up (including MCP tool calls)
 					const followUpParsed = parseAllMarkers(followUpContent);
 					const followUpClean = extractMemoriesFromResponse(followUpParsed.cleanContent);
 
@@ -656,6 +689,26 @@ export async function sendMessage(text: string, imageAttachments?: string[], fil
 					}
 					for (const prompt of followUpParsed.videoPrompts) {
 						handleVideoGeneration(prompt);
+					}
+
+					// Execute any MCP tool calls found in follow-up
+					if (followUpParsed.toolCalls.length > 0) {
+						const followUpMcpPromises = followUpParsed.toolCalls.map(async (tc) => {
+							const result = await executeToolCall(tc);
+							messages.update(msgs =>
+								msgs.map(m => {
+									if (m.id !== followUpId || !m.toolCalls) return m;
+									return {
+										...m,
+										toolCalls: m.toolCalls.map(t =>
+											t === tc ? { ...t, status: 'success' as const, result } : t
+										)
+									};
+								})
+							);
+							return result;
+						});
+						await Promise.all(followUpMcpPromises);
 					}
 				} catch (err) {
 					const errorMsg = err instanceof Error ? err.message : '未知错误';
@@ -778,7 +831,7 @@ export function regenerateLastMessage() {
 	const updated = msgs.slice(0, lastAssistantIdx);
 	messages.set(updated);
 	const userMsg = msgs[lastUserIdx].content;
-	sendMessage(userMsg);
+	sendMessage(userMsg, undefined, undefined);
 }
 
 export function exportConversation(): string {
@@ -790,7 +843,7 @@ export function exportConversation(): string {
 		} else if (msg.role === 'assistant' && msg.content) {
 			md += `## 爱爱\n${msg.content}\n\n`;
 			if (msg.imageUrl) md += `![生成的图片](${msg.imageUrl})\n\n`;
-			if (msg.videoUrl) md += `[生成的视频](${msg.videoUrl})\n\n`;
+			if (msg.videoUrl) md += `[生成的视频](${msg.videoUrl}\n\n`;
 		}
 	}
 	return md;

@@ -90,4 +90,41 @@ export interface Translations {
 	researchPlan: string;
 	codeCopy: string;
 	codeCopied: string;
+	// MCP tools
+	mcpTool: string;
+	mcpCalculator: string;
+	mcpCodeRunner: string;
+	mcpJSONFormatter: string;
+	mcpTextTransform: string;
+	mcpDateTime: string;
+	// SSH terminal
+	sshTerminal: string;
+	sshOpen: string;
+	sshClose: string;
+	// Knowledge base
+	knowledgeBase: string;
+	kbAddDoc: string;
+	kbSearch: string;
+	kbNoDocs: string;
+	kbDocTitle: string;
+	kbDocContent: string;
+	kbDocTags: string;
+	// Assistant
+	assistantRole: string;
+	assistantSwitch: string;
+	assistantCustom: string;
+	assistantCreate: string;
+	assistantDelete: string;
+	assistantName: string;
+	assistantDesc: string;
+	assistantPrompt: string;
+	assistantIcon: string;
+	assistantColor: string;
+	// File manager
+	fileManager: string;
+	fileUpload: string;
+	filePreview: string;
+	fileDelete: string;
+	fileCategory: string;
+	fileBatchDelete: string;
 }

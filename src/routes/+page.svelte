@@ -15,7 +15,24 @@
 		removeMemory,
 		clearMemory
 	} from '$lib/stores/memory';
+	import {
+		BUILT_IN_ASSISTANTS,
+		customAssistants,
+		currentAssistantId,
+		switchAssistant,
+		getAllAssistants,
+		getCurrentAssistant
+	} from '$lib/stores/assistants';
+	import type { AssistantRole } from '$lib/stores/assistants';
+	import {
+		knowledgeDocs,
+		addKnowledgeDoc,
+		removeKnowledgeDoc,
+		searchKnowledgeBase
+	} from '$lib/stores/knowledge-base';
+	import type { SearchResult } from '$lib/stores/knowledge-base';
 	import ChatInterface from './ChatInterface.svelte';
+	import SSHTerminal from '$lib/components/SSHTerminal.svelte';
 	import { onMount } from 'svelte';
 
 	let sidebarOpen = $state(false);
@@ -29,6 +46,22 @@
 	// Theme
 	type Theme = 'light' | 'dark' | 'auto';
 	let theme: Theme = $state('auto');
+
+	// New state variables
+	let sshOpen = $state(false);
+	let kbPanelOpen = $state(false);
+	let assistantDropdownOpen = $state(false);
+
+	// Knowledge base form state
+	let kbTitle = $state('');
+	let kbContent = $state('');
+	let kbTags = $state('');
+	let kbSearchQuery = $state('');
+	let kbSearchResults: SearchResult[] = $state([]);
+
+	// Current assistant
+	let currentAssistant = $derived(getCurrentAssistant());
+	let allAssistants = $derived(getAllAssistants());
 
 	function loadTheme() {
 		if (typeof window === 'undefined') return;
@@ -144,6 +177,46 @@
 		};
 		return colors[cat] || '#999';
 	}
+
+	// Assistant functions
+	function handleSwitchAssistant(id: string) {
+		switchAssistant(id);
+		assistantDropdownOpen = false;
+	}
+
+	function handleAssistantDropdownClick(e: Event | undefined) {
+		if (e) e.stopPropagation();
+		assistantDropdownOpen = !assistantDropdownOpen;
+	}
+
+	function closeAssistantDropdown(e: Event | undefined) {
+		if (e) e.stopPropagation();
+		assistantDropdownOpen = false;
+	}
+
+	// Knowledge base functions
+	function handleAddKnowledgeDoc() {
+		if (!kbTitle.trim() || !kbContent.trim()) return;
+		const tags = kbTags.split(',').map(t => t.trim()).filter(Boolean);
+		addKnowledgeDoc(kbTitle.trim(), kbContent.trim(), tags);
+		kbTitle = '';
+		kbContent = '';
+		kbTags = '';
+	}
+
+	function handleKbSearch() {
+		if (!kbSearchQuery.trim()) {
+			kbSearchResults = [];
+			return;
+		}
+		kbSearchResults = searchKnowledgeBase(kbSearchQuery.trim());
+	}
+
+	function handleKbSearchKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			handleKbSearch();
+		}
+	}
 </script>
 
 <svelte:head>
@@ -159,12 +232,61 @@
 
 	<!-- Sidebar -->
 	<aside class="sidebar {sidebarOpen ? '' : 'collapsed'}">
-		<!-- Logo area -->
+		<!-- Logo area with assistant switcher -->
 		<div class="sidebar-logo">
-			<div class="sidebar-logo-icon">
-				<span class="sidebar-logo-text">爱</span>
+			<div class="sidebar-logo-icon" style="background: linear-gradient(135deg, {currentAssistant.color}, {currentAssistant.color}dd);">
+				<span class="sidebar-logo-text">{currentAssistant.icon}</span>
 			</div>
-			<span class="sidebar-logo-label">爱爱</span>
+			<div class="sidebar-logo-info">
+				<span class="sidebar-logo-label">{currentAssistant.name}</span>
+				<button
+					class="assistant-dropdown-toggle"
+					onclick={handleAssistantDropdownClick}
+					title="切换助手"
+				>
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="6 9 12 15 18 9" />
+					</svg>
+				</button>
+			</div>
+
+			<!-- Assistant dropdown -->
+			{#if assistantDropdownOpen}
+				<div class="assistant-dropdown" onclick={(e: Event | undefined) => { if (e) e.stopPropagation(); }}>
+					<div class="assistant-dropdown-section">
+						<span class="assistant-dropdown-label">内置助手</span>
+						{#each BUILT_IN_ASSISTANTS as assistant}
+							<button
+								class="assistant-dropdown-item {$currentAssistantId === assistant.id ? 'assistant-dropdown-item-active' : ''}"
+								onclick={() => handleSwitchAssistant(assistant.id)}
+							>
+								<span class="assistant-dropdown-icon" style="background: {assistant.color}20; color: {assistant.color};">{assistant.icon}</span>
+								<div class="assistant-dropdown-item-info">
+									<span class="assistant-dropdown-item-name">{assistant.name}</span>
+									<span class="assistant-dropdown-item-desc">{assistant.description}</span>
+								</div>
+							</button>
+						{/each}
+					</div>
+					{#if $customAssistants.length > 0}
+						<div class="assistant-dropdown-section">
+							<span class="assistant-dropdown-label">自定义助手</span>
+							{#each $customAssistants as assistant}
+								<button
+									class="assistant-dropdown-item {$currentAssistantId === assistant.id ? 'assistant-dropdown-item-active' : ''}"
+									onclick={() => handleSwitchAssistant(assistant.id)}
+								>
+									<span class="assistant-dropdown-icon" style="background: {assistant.color}20; color: {assistant.color};">{assistant.icon}</span>
+									<div class="assistant-dropdown-item-info">
+										<span class="assistant-dropdown-item-name">{assistant.name}</span>
+										<span class="assistant-dropdown-item-desc">{assistant.description}</span>
+									</div>
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<!-- New chat button -->
@@ -210,7 +332,7 @@
 						<span class="sidebar-history-item-title">{conv.title}</span>
 						<span
 							class="sidebar-history-item-pin"
-							onclick={(e) => { e.stopPropagation(); togglePin(conv.id); }}
+							onclick={(e: Event | undefined) => { if (e) e.stopPropagation(); togglePin(conv.id); }}
 							role="button"
 							tabindex="0"
 							title="取消置顶"
@@ -221,7 +343,7 @@
 						</span>
 						<span
 							class="sidebar-history-item-delete"
-							onclick={(e) => { e.stopPropagation(); handleRemoveConversation(conv.id); }}
+							onclick={(e: Event | undefined) => { if (e) e.stopPropagation(); handleRemoveConversation(conv.id); }}
 							role="button"
 							tabindex="0"
 						>
@@ -243,7 +365,7 @@
 						<span class="sidebar-history-item-title">{conv.title}</span>
 						<span
 							class="sidebar-history-item-pin"
-							onclick={(e) => { e.stopPropagation(); togglePin(conv.id); }}
+							onclick={(e: Event | undefined) => { if (e) e.stopPropagation(); togglePin(conv.id); }}
 							role="button"
 							tabindex="0"
 							title="置顶"
@@ -254,7 +376,7 @@
 						</span>
 						<span
 							class="sidebar-history-item-delete"
-							onclick={(e) => { e.stopPropagation(); handleRemoveConversation(conv.id); }}
+							onclick={(e: Event | undefined) => { if (e) e.stopPropagation(); handleRemoveConversation(conv.id); }}
 							role="button"
 							tabindex="0"
 						>
@@ -303,6 +425,20 @@
 				记忆面板
 				{#if $memoryEntries.length > 0}
 					<span class="memory-badge">{$memoryEntries.length}</span>
+				{/if}
+			</button>
+		</div>
+
+		<!-- Knowledge base toggle -->
+		<div class="sidebar-kb-toggle">
+			<button class="sidebar-kb-btn" onclick={() => kbPanelOpen = !kbPanelOpen}>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+					<path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+				</svg>
+				知识库
+				{#if $knowledgeDocs.length > 0}
+					<span class="memory-badge">{$knowledgeDocs.length}</span>
 				{/if}
 			</button>
 		</div>
@@ -423,13 +559,151 @@
 		</div>
 	{/if}
 
+	<!-- Knowledge base panel overlay -->
+	{#if kbPanelOpen}
+		<div class="memory-panel-overlay" onclick={() => kbPanelOpen = false} role="presentation"></div>
+	{/if}
+
+	<!-- Knowledge base panel -->
+	{#if kbPanelOpen}
+		<div class="memory-panel kb-panel">
+			<div class="memory-panel-header">
+				<h3 class="memory-panel-title">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+						<path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+					</svg>
+					知识库
+				</h3>
+				<div class="memory-panel-actions">
+					<button class="memory-close-btn" onclick={() => kbPanelOpen = false}>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M18 6L6 18M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+			</div>
+			<div class="memory-panel-content">
+				<!-- Search -->
+				<div class="kb-search-box">
+					<input
+						type="text"
+						placeholder="搜索知识库..."
+						bind:value={kbSearchQuery}
+						onkeydown={handleKbSearchKeyDown}
+					/>
+					<button class="kb-search-btn" onclick={handleKbSearch}>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="11" cy="11" r="8" />
+							<line x1="21" y1="21" x2="16.65" y2="16.65" />
+						</svg>
+					</button>
+				</div>
+
+				<!-- Search results -->
+				{#if kbSearchResults.length > 0}
+					<div class="kb-section">
+						<span class="kb-section-label">搜索结果</span>
+						{#each kbSearchResults as result}
+							<div class="kb-doc-item">
+								<div class="kb-doc-header">
+									<span class="kb-doc-title">{result.document.title}</span>
+									<span class="kb-doc-score">{result.score.toFixed(1)}</span>
+								</div>
+								<div class="kb-doc-excerpt">{result.excerpt}</div>
+								{#if result.document.tags.length > 0}
+									<div class="kb-doc-tags">
+										{#each result.document.tags as tag}
+											<span class="kb-doc-tag">{tag}</span>
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Add document form -->
+				<div class="kb-section">
+					<span class="kb-section-label">添加文档</span>
+					<div class="kb-form">
+						<input
+							type="text"
+							placeholder="文档标题"
+							bind:value={kbTitle}
+						/>
+						<textarea
+							placeholder="文档内容..."
+							bind:value={kbContent}
+							rows="4"
+						></textarea>
+						<input
+							type="text"
+							placeholder="标签 (用逗号分隔)"
+							bind:value={kbTags}
+						/>
+						<button class="kb-add-btn" onclick={handleAddKnowledgeDoc}>
+							添加文档
+						</button>
+					</div>
+				</div>
+
+				<!-- Document list -->
+				<div class="kb-section">
+					<span class="kb-section-label">文档列表 ({$knowledgeDocs.length})</span>
+					{#if $knowledgeDocs.length === 0}
+						<div class="memory-empty">
+							<p>暂无文档</p>
+							<p style="font-size: 12px; color: var(--dbx-text-quaternary); margin-top: 4px;">
+								添加文档以构建你的知识库
+							</p>
+						</div>
+					{:else}
+						<div class="kb-doc-list">
+							{#each $knowledgeDocs as doc}
+								<div class="kb-doc-item">
+									<div class="kb-doc-header">
+										<span class="kb-doc-title">{doc.title}</span>
+										<button
+											class="kb-doc-delete"
+											onclick={() => removeKnowledgeDoc(doc.id)}
+										>
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+												<path d="M18 6L6 18M6 6l12 12" />
+											</svg>
+										</button>
+									</div>
+									<div class="kb-doc-content">{doc.content.slice(0, 100)}{doc.content.length > 100 ? '...' : ''}</div>
+									{#if doc.tags.length > 0}
+										<div class="kb-doc-tags">
+											{#each doc.tags as tag}
+												<span class="kb-doc-tag">{tag}</span>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Main content -->
 	<main class="main-content">
 		<ChatInterface
 			onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
 			{sidebarOpen}
+			{currentAssistant}
+			onToggleSSH={() => (sshOpen = !sshOpen)}
 		/>
 	</main>
+
+	<!-- SSH Terminal -->
+	{#if sshOpen}
+		<SSHTerminal onClose={() => (sshOpen = false)} />
+	{/if}
 </div>
 
 <style>
@@ -455,6 +729,7 @@
 		gap: 10px;
 		padding: 16px;
 		border-bottom: 1px solid var(--dbx-line-7);
+		position: relative;
 	}
 
 	.sidebar-logo-icon {
@@ -474,10 +749,137 @@
 		font-weight: 700;
 	}
 
+	.sidebar-logo-info {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+
 	.sidebar-logo-label {
 		font-size: 15px;
 		font-weight: 600;
 		color: var(--dbx-text-primary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* Assistant dropdown toggle */
+	.assistant-dropdown-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: var(--radius-xxs);
+		border: none;
+		background: transparent;
+		color: var(--dbx-text-quaternary);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		flex-shrink: 0;
+	}
+
+	.assistant-dropdown-toggle:hover {
+		background: var(--dbx-fill-trans-10);
+		color: var(--dbx-text-secondary);
+	}
+
+	/* Assistant dropdown */
+	.assistant-dropdown {
+		position: absolute;
+		top: calc(100% + 4px);
+		left: 12px;
+		right: 12px;
+		background: var(--dbx-bg-body);
+		border: 1px solid var(--dbx-line-7);
+		border-radius: var(--radius-s);
+		box-shadow: var(--shadow-lg);
+		z-index: 50;
+		max-height: 400px;
+		overflow-y: auto;
+		padding: 8px;
+	}
+
+	.assistant-dropdown-section {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.assistant-dropdown-section + .assistant-dropdown-section {
+		margin-top: 8px;
+		padding-top: 8px;
+		border-top: 1px solid var(--dbx-line-7);
+	}
+
+	.assistant-dropdown-label {
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--dbx-text-quaternary);
+		padding: 4px 8px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.assistant-dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 10px;
+		border-radius: var(--radius-xs);
+		border: none;
+		background: transparent;
+		color: var(--dbx-text-secondary);
+		font-size: 13px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		text-align: left;
+		width: 100%;
+	}
+
+	.assistant-dropdown-item:hover {
+		background: var(--dbx-fill-trans-10);
+	}
+
+	.assistant-dropdown-item-active {
+		background: rgba(0, 102, 255, 0.06);
+	}
+
+	.assistant-dropdown-icon {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 14px;
+		flex-shrink: 0;
+	}
+
+	.assistant-dropdown-item-info {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.assistant-dropdown-item-name {
+		font-weight: 500;
+		color: var(--dbx-text-primary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.assistant-dropdown-item-desc {
+		font-size: 11px;
+		color: var(--dbx-text-quaternary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	/* Sidebar header */
@@ -665,6 +1067,31 @@
 		font-weight: 600;
 	}
 
+	/* Knowledge base toggle */
+	.sidebar-kb-toggle {
+		padding: 0 12px 8px;
+	}
+
+	.sidebar-kb-btn {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		padding: 8px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		color: var(--dbx-text-secondary);
+		font-size: 13px;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.sidebar-kb-btn:hover {
+		border-color: rgba(0, 102, 255, 0.3);
+		background: var(--dbx-fill-trans-10);
+	}
+
 	/* Memory panel */
 	.memory-panel-overlay {
 		position: fixed;
@@ -689,9 +1116,17 @@
 		animation: slideUp 0.2s ease;
 	}
 
+	.kb-panel {
+		width: 420px;
+		max-height: 70vh;
+	}
+
 	@media (max-width: 768px) {
 		.memory-panel {
 			left: 0;
+			width: 100%;
+		}
+		.kb-panel {
 			width: 100%;
 		}
 	}
@@ -836,6 +1271,197 @@
 		font-size: 13px;
 		color: var(--dbx-text-secondary);
 		line-height: 1.5;
+	}
+
+	/* Knowledge base panel styles */
+	.kb-search-box {
+		display: flex;
+		gap: 8px;
+		margin-bottom: 16px;
+	}
+
+	.kb-search-box input {
+		flex: 1;
+		padding: 8px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		color: var(--dbx-text-primary);
+		font-size: 13px;
+		outline: none;
+		transition: border-color var(--transition-fast);
+	}
+
+	.kb-search-box input:focus {
+		border-color: var(--dbx-brand-primary);
+	}
+
+	.kb-search-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		color: var(--dbx-text-tertiary);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		flex-shrink: 0;
+	}
+
+	.kb-search-btn:hover {
+		border-color: var(--dbx-brand-primary);
+		color: var(--dbx-brand-primary);
+	}
+
+	.kb-section {
+		margin-bottom: 16px;
+	}
+
+	.kb-section-label {
+		display: block;
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--dbx-text-quaternary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 8px 0;
+		margin-bottom: 4px;
+	}
+
+	.kb-form {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.kb-form input,
+	.kb-form textarea {
+		padding: 8px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		color: var(--dbx-text-primary);
+		font-size: 13px;
+		outline: none;
+		transition: border-color var(--transition-fast);
+		font-family: inherit;
+		resize: vertical;
+	}
+
+	.kb-form input:focus,
+	.kb-form textarea:focus {
+		border-color: var(--dbx-brand-primary);
+	}
+
+	.kb-add-btn {
+		padding: 8px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-brand-primary);
+		background: var(--dbx-brand-primary);
+		color: white;
+		font-size: 13px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.kb-add-btn:hover {
+		background: var(--dbx-brand-primary-deep);
+	}
+
+	.kb-doc-list {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.kb-doc-item {
+		padding: 10px 12px;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--dbx-line-7);
+		background: var(--dbx-bg-body);
+		transition: border-color var(--transition-fast);
+	}
+
+	.kb-doc-item:hover {
+		border-color: rgba(0, 102, 255, 0.2);
+	}
+
+	.kb-doc-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 6px;
+	}
+
+	.kb-doc-title {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--dbx-text-primary);
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.kb-doc-score {
+		font-size: 11px;
+		color: var(--dbx-brand-primary);
+		font-weight: 600;
+		padding: 1px 6px;
+		border-radius: 10px;
+		background: rgba(0, 102, 255, 0.08);
+	}
+
+	.kb-doc-content,
+	.kb-doc-excerpt {
+		font-size: 12px;
+		color: var(--dbx-text-tertiary);
+		line-height: 1.5;
+		margin-bottom: 6px;
+	}
+
+	.kb-doc-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+
+	.kb-doc-tag {
+		font-size: 10px;
+		padding: 2px 6px;
+		border-radius: 4px;
+		background: var(--dbx-fill-trans-10);
+		color: var(--dbx-text-tertiary);
+	}
+
+	.kb-doc-delete {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		border: none;
+		background: transparent;
+		color: var(--dbx-text-quaternary);
+		cursor: pointer;
+		padding: 0;
+		opacity: 0;
+		transition: opacity var(--transition-fast);
+		flex-shrink: 0;
+	}
+
+	.kb-doc-item:hover .kb-doc-delete {
+		opacity: 1;
+	}
+
+	.kb-doc-delete:hover {
+		color: var(--dbx-function-danger);
+		background: rgba(255, 59, 48, 0.08);
 	}
 
 	/* Theme toggle */
